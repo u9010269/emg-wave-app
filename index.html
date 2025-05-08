@@ -3,29 +3,16 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EMG 波形圖 (Polling版)</title>
+<title>EMG 波形圖</title>
 <style>
-    body {
-        background-color: black;
-        color: #0f0;
-        text-align: center;
-        font-family: Arial, sans-serif;
-    }
-    canvas {
-        background-color: #111;
-        display: block;
-        margin: 0 auto;
-    }
-    button {
-        font-size: 20px;
-        padding: 10px 20px;
-        margin: 20px;
-    }
+    body { background-color: black; color: #0f0; text-align: center; font-family: Arial, sans-serif; }
+    canvas { background-color: #111; display: block; margin: 0 auto; }
+    button { font-size: 20px; padding: 10px 20px; margin: 20px; }
 </style>
 </head>
 <body>
 
-<h1>EMG 即時波形圖 (Polling版)</h1>
+<h1>EMG 即時波形圖</h1>
 <button onclick="connectBluetooth()">連接 EMG 裝置</button>
 <canvas id="waveform" width="400" height="200"></canvas>
 <p id="emgValue">EMG 數值: -</p>
@@ -47,7 +34,6 @@ function draw() {
     for (let x = 1; x < values.length; x++) {
         ctx.lineTo(x, canvas.height - values[x]);
     }
-
     ctx.stroke();
 }
 
@@ -67,29 +53,33 @@ async function connectBluetooth() {
         const service = await server.getPrimaryService("ffe0");
         characteristic = await service.getCharacteristic("ffe1");
 
-        alert("已連線，開始讀取數據");
-        startPolling();
+        alert("已連線，開始接收數據");
+        startNotifications();
 
     } catch (error) {
         alert("連線失敗: " + error);
     }
 }
 
-function startPolling() {
-    setInterval(async () => {
-        if (characteristic) {
-            try {
-                const value = await characteristic.readValue();
-                let emg = value.getUint8(0);
-                document.getElementById("emgValue").innerText = "EMG 數值: " + emg;
+function startNotifications() {
+    if (!characteristic) {
+        console.error("特徵值未初始化，無法讀取數據");
+        return;
+    }
 
-                let mapped = Math.min(200, Math.max(0, emg));
-                addValue(mapped);
-            } catch (e) {
-                console.log("讀取失敗", e);
-            }
-        }
-    }, 100); // 每100ms讀取一次
+    characteristic.startNotifications().then(() => {
+        characteristic.addEventListener("characteristicvaluechanged", (event) => {
+            let emgString = new TextDecoder().decode(event.target.value.buffer);
+            let emg = parseInt(emgString.trim()); // **確保解析為純數字**
+
+            document.getElementById("emgValue").innerText = "EMG 數值: " + emg;
+
+            let mapped = Math.min(200, Math.max(0, emg));
+            addValue(mapped);
+        });
+    }).catch(error => {
+        console.error("啟動通知失敗:", error);
+    });
 }
 
 // 初始化畫面
