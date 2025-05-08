@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>EMG 波形圖</title>
+<title>EMG 即時波形圖</title>
 <style>
     body { background-color: black; color: #0f0; text-align: center; font-family: Arial, sans-serif; }
     canvas { background-color: #111; display: block; margin: 0 auto; }
@@ -46,7 +46,7 @@ function addValue(val) {
 async function connectBluetooth() {
     try {
         const device = await navigator.bluetooth.requestDevice({
-            filters: [{ services: ["ffe0"] }]  // **確認 UUID 是否匹配**
+            filters: [{ services: ["ffe0"] }]  // 確保 UUID 正確
         });
 
         const server = await device.gatt.connect();
@@ -68,16 +68,23 @@ function startNotifications() {
     }
 
     characteristic.startNotifications().then(() => {
-        characteristic.addEventListener("characteristicvaluechanged", (event) => {
-            let emgString = new TextDecoder().decode(event.target.value.buffer);
-            let emg = parseInt(emgString.trim()); // **確保解析為純數字**
+        console.log("🔵 BLE 通知啟動成功！");
 
+        characteristic.addEventListener("characteristicvaluechanged", (event) => {
+            console.log("⚡ 收到通知事件，開始解析數據...");
+
+            let emgString = new TextDecoder().decode(event.target.value.buffer);
+            console.log("📡 收到 EMG 原始數據:", emgString);
+
+            let emg = parseInt(emgString.trim());
             document.getElementById("emgValue").innerText = "EMG 數值: " + emg;
-            console.log("收到 EMG 數據:", emg);
+
+            let mapped = Math.min(200, Math.max(0, emg));
+            addValue(mapped);
         });
     }).catch(error => {
         document.getElementById("emgValue").innerText = "啟動通知失敗：" + error;
-        console.error("啟動通知失敗:", error);
+        console.error("❌ 啟動通知失敗:", error);
     });
 }
 
