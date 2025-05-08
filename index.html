@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>EMG 波形顯示</title>
+  <style>
+    #connectButton {
+      font-size: 18px;
+      padding: 10px 20px;
+    }
+    #emgCanvas {
+      border: 1px solid #000;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <button id="connectButton">連接 EMG 裝置</button>
+  <canvas id="emgCanvas" width="800" height="400"></canvas>
+
+  <script>
+    const connectButton = document.getElementById('connectButton');
+    const canvas = document.getElementById('emgCanvas');
+    const ctx = canvas.getContext('2d');
+    let x = 0;
+
+    connectButton.addEventListener('click', async () => {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ services: ['ffe0'] }]
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('ffe0');
+        const characteristic = await service.getCharacteristic('ffe1');
+
+        await characteristic.startNotifications();
+        characteristic.addEventListener('characteristicvaluechanged', handleData);
+      } catch (error) {
+        console.error('連接失敗：', error);
+      }
+    });
+
+    function handleData(event) {
+      const value = event.target.value;
+      const decoder = new TextDecoder('utf-8');
+      const emgString = decoder.decode(value);
+      const emgValue = parseInt(emgString.replace(/\D/g, ''), 10);
+
+      if (!isNaN(emgValue)) {
+        drawEMG(emgValue);
+      }
+    }
+
+    function drawEMG(value) {
+      const y = canvas.height - (value / 1024) * canvas.height;
+      ctx.fillStyle = 'white';
+      ctx.fillRect(x, 0, 1, canvas.height);
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(x, y, 1, 2);
+      x = (x + 1) % canvas.width;
+    }
+  </script>
+</body>
+</html>
