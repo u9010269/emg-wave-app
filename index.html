@@ -1,38 +1,53 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <title>BLE EMG Debug Receiver</title>
+  <meta charset="UTF-8">
+  <title>EMG 藍牙監測頁</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #log { white-space: pre-line; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
+  </style>
 </head>
 <body>
-  <h2>EMG Debug 接收器</h2>
-  <button onclick="connect()">連接藍牙</button>
-  <pre id="output">尚未接收資料</pre>
+  <h2>EMG Web Bluetooth 接收測試</h2>
+  <button onclick="connect()">連線藍牙裝置</button>
+  <p>即時數值：<span id="value">尚未接收</span></p>
+  <div id="log"></div>
 
   <script>
-    let output = document.getElementById('output');
+    let logArea = document.getElementById("log");
+    let valueSpan = document.getElementById("value");
+
+    function log(msg) {
+      console.log(msg);
+      logArea.textContent += msg + '\n';
+    }
 
     async function connect() {
       try {
+        log("開始掃描裝置...");
         const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'MLT' }],
+          filters: [{ namePrefix: 'MLT-BT05' }],
           optionalServices: ['ffe0']
         });
 
+        log("已選擇裝置：" + device.name);
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
-        const charac = await service.getCharacteristic('ffe1');
+        const characteristic = await service.getCharacteristic('ffe1');
 
-        await charac.startNotifications();
-        output.textContent = '已連線，等待資料...\n';
+        await characteristic.startNotifications();
+        log("已啟用通知");
 
-        charac.addEventListener('characteristicvaluechanged', event => {
-          const value = new TextDecoder().decode(event.target.value);
-          output.textContent += '收到：' + value + '\n';
+        characteristic.addEventListener('characteristicvaluechanged', (event) => {
+          const decoder = new TextDecoder('utf-8');
+          const value = decoder.decode(event.target.value);
+          valueSpan.textContent = value.trim();
+          log("接收值：" + value);
         });
 
-      } catch (error) {
-        output.textContent += '錯誤：' + error + '\n';
+      } catch (err) {
+        log("錯誤：" + err);
       }
     }
   </script>
