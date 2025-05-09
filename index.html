@@ -2,25 +2,29 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 雙波形圖</title>
+  <title>EMG 雙波形圖（含基線校正）</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
     #value { font-size: 1.2em; margin-top: 10px; }
+    button { margin-right: 10px; }
   </style>
 </head>
 <body>
-  <h2>EMG 即時波形圖（雙視角）</h2>
+  <h2>EMG 即時波形圖（雙視角 + 基線校正）</h2>
   <button onclick="connect()">連接藍牙</button>
+  <button onclick="calibrateBaseline()">基線校正</button>
   <p id="value">即時數值：--</p>
   <h4>一般範圍（0~1023）</h4>
   <canvas id="emgChart"></canvas>
-  <h4>微幅波動監控</h4> <!-- ← 顯示標題更新 -->
+  <h4>微幅波動監控（300~400，細緻）</h4>
   <canvas id="zoomChart"></canvas>
 
   <script>
     let characteristic;
+    let baseline = 0;
+    let isCalibrated = false;
 
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
@@ -30,7 +34,7 @@
       data: {
         labels: Array(100).fill(''),
         datasets: [{
-          label: 'EMG 數值',
+          label: 'EMG 數值（扣除基線）',
           data: rawData,
           borderColor: 'blue',
           borderWidth: 2,
@@ -41,10 +45,7 @@
         responsive: true,
         animation: false,
         scales: {
-          y: {
-            min: 200,              // ← 原範圍起點
-            max: 800            // ← 原範圍終點
-          }
+          y: { min: 0, max: 1023 } // ← 原始全域範圍（如需更小範圍可改）
         }
       }
     });
@@ -65,10 +66,7 @@
         responsive: true,
         animation: false,
         scales: {
-          y: {
-            min: 290,            // ← 改這裡以設定最小值（原為 200）
-            max: 350             // ← 改這裡以設定最大值（原為 500）
-          }
+          y: { min: 380, max: 350 } // ← 微幅視窗的固定顯示區間
         }
       }
     });
@@ -83,27 +81,58 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
 
-        setInterval(readEMG, 100);
+        setInterval(readEMG, 100); // 每 100ms 取樣一次
       } catch (error) {
         alert('連接失敗：' + error);
       }
     }
 
     async function readEMG() {
+      if (!characteristic) return;
       try {
         const value = await characteristic.readValue();
         const text = new TextDecoder('utf-8').decode(value).trim();
         const emg = parseInt(text);
         if (!isNaN(emg)) {
-          document.getElementById('value').innerText = '即時數值：' + emg;
-          rawData.push(emg); rawData.shift();
-          zoomData.push(emg); zoomData.shift();
+          const adjusted = isCalibrated ? emg - baseline : emg;
+          document.getElementById('value').innerText = '即時數值：' + adjusted;
+          rawData.push(adjusted); rawData.shift();
+          zoomData.push(adjusted); zoomData.shift();
           emgChart.update();
           zoomChart.update();
         }
       } catch (e) {
         console.warn('讀取失敗:', e);
       }
+    }
+
+    async function calibrateBaseline() {
+      if (!characteristic) {
+        alert("請先連接藍牙裝置");
+        return;
+      }
+
+      let sum = 0, count = 30, i = 0;
+      alert("請保持完全放鬆，正在校正靜態基線...");
+      const interval = setInterval(async () => {
+        try {
+          const value = await characteristic.readValue();
+          const emg = parseInt(new TextDecoder().decode(value).trim());
+          if (!isNaN(emg)) {
+            sum += emg;
+            i++;
+            if (i >= count) {
+              baseline = Math.floor(sum / count);
+              isCalibrated = true;
+              clearInterval(interval);
+              alert('基線設定完成：' + baseline);
+            }
+          }
+        } catch (e) {
+          clearInterval(interval);
+          alert('校正失敗：' + e);
+        }
+      }, 100);
     }
   </script>
 </body>
