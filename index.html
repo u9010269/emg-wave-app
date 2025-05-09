@@ -1,55 +1,48 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <title>EMG 藍牙監測頁</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #log { white-space: pre-line; border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: scroll; }
-  </style>
+  <title>EMG Web Bluetooth 測試</title>
 </head>
 <body>
-  <h2>EMG Web Bluetooth 接收測試</h2>
-  <button onclick="connect()">連線藍牙裝置</button>
-  <p>即時數值：<span id="value">尚未接收</span></p>
-  <div id="log"></div>
+  <h3>EMG Bluetooth 接收測試</h3>
+  <button onclick="connect()">連接藍牙</button>
+  <p id="status">尚未連接</p>
+  <textarea id="log" rows="20" cols="50"></textarea>
 
-  <script>
-    let logArea = document.getElementById("log");
-    let valueSpan = document.getElementById("value");
+<script>
+let device, characteristic;
 
-    function log(msg) {
-      console.log(msg);
-      logArea.textContent += msg + '\n';
-    }
+async function connect() {
+  document.getElementById("status").textContent = "連線中...";
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: 'MLT-BT05' }],
+      optionalServices: ['ffe0']
+    });
 
-    async function connect() {
-      try {
-        log("開始掃描裝置...");
-        const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'MLT-BT05' }],
-          optionalServices: ['ffe0']
-        });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService('ffe0');
+    characteristic = await service.getCharacteristic('ffe1');
 
-        log("已選擇裝置：" + device.name);
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('ffe0');
-        const characteristic = await service.getCharacteristic('ffe1');
+    await characteristic.startNotifications();
+    characteristic.addEventListener('characteristicvaluechanged', handleNotify);
 
-        await characteristic.startNotifications();
-        log("已啟用通知");
+    document.getElementById("status").textContent = "已連線並啟用通知";
+  } catch (err) {
+    document.getElementById("status").textContent = "錯誤：" + err;
+  }
+}
 
-        characteristic.addEventListener('characteristicvaluechanged', (event) => {
-          const decoder = new TextDecoder('utf-8');
-          const value = decoder.decode(event.target.value);
-          valueSpan.textContent = value.trim();
-          log("接收值：" + value);
-        });
+function handleNotify(event) {
+  const value = event.target.value;
+  let hexStr = '';
+  for (let i = 0; i < value.byteLength; i++) {
+    hexStr += value.getUint8(i).toString(16).padStart(2, '0') + ' ';
+  }
 
-      } catch (err) {
-        log("錯誤：" + err);
-      }
-    }
-  </script>
+  const log = document.getElementById("log");
+  log.value = `[${new Date().toLocaleTimeString()}] ${hexStr}\n` + log.value;
+}
+</script>
 </body>
 </html>
