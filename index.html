@@ -2,43 +2,72 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 波形顯示</title>
+  <title>EMG 雙波形圖</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
-    canvas { max-width: 100%; height: 300px; }
+    canvas { max-width: 100%; height: 250px; }
     #value { font-size: 1.2em; margin-top: 10px; }
   </style>
 </head>
 <body>
-  <h2>EMG 即時波形圖</h2>
+  <h2>EMG 即時波形圖（雙視角）</h2>
   <button onclick="connect()">連接藍牙</button>
   <p id="value">即時數值：--</p>
+  <h4>一般範圍（0~1023）</h4>
   <canvas id="emgChart"></canvas>
+  <h4>微幅波動監控（300~400，細緻）</h4> <!-- ← 顯示標題更新 -->
+  <canvas id="zoomChart"></canvas>
 
   <script>
     let characteristic;
-    const chartData = {
-      labels: Array(100).fill(''),
-      datasets: [{
-        label: 'EMG 數值',
-        data: Array(100).fill(0),
-        borderWidth: 2,
-        borderColor: 'blue',
-        tension: 0.1
-      }]
-    };
+
+    const rawData = Array(100).fill(0);
+    const zoomData = Array(100).fill(0);
 
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
-      data: chartData,
+      data: {
+        labels: Array(100).fill(''),
+        datasets: [{
+          label: 'EMG 數值',
+          data: rawData,
+          borderColor: 'blue',
+          borderWidth: 2,
+          tension: 0.1
+        }]
+      },
       options: {
         responsive: true,
         animation: false,
         scales: {
           y: {
-            suggestedMin: 0,
-            suggestedMax: 1023
+            min: 0,              // ← 原範圍起點
+            max: 1023            // ← 原範圍終點
+          }
+        }
+      }
+    });
+
+    const zoomChart = new Chart(document.getElementById('zoomChart'), {
+      type: 'line',
+      data: {
+        labels: Array(100).fill(''),
+        datasets: [{
+          label: '放大區間 (300~400)',
+          data: zoomData,
+          borderColor: 'green',
+          borderWidth: 2,
+          tension: 0.1
+        }]
+      },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          y: {
+            min: 300,            // ← 改這裡以設定最小值（原為 200）
+            max: 400             // ← 改這裡以設定最大值（原為 500）
           }
         }
       }
@@ -63,17 +92,17 @@
     async function readEMG() {
       try {
         const value = await characteristic.readValue();
-        const decoder = new TextDecoder('utf-8');
-        const text = decoder.decode(value).trim();
-        const emgValue = parseInt(text);
-        if (!isNaN(emgValue)) {
-          document.getElementById('value').innerText = '即時數值：' + emgValue;
-          chartData.datasets[0].data.push(emgValue);
-          chartData.datasets[0].data.shift();
+        const text = new TextDecoder('utf-8').decode(value).trim();
+        const emg = parseInt(text);
+        if (!isNaN(emg)) {
+          document.getElementById('value').innerText = '即時數值：' + emg;
+          rawData.push(emg); rawData.shift();
+          zoomData.push(emg); zoomData.shift();
           emgChart.update();
+          zoomChart.update();
         }
-      } catch (error) {
-        console.warn('讀取失敗:', error);
+      } catch (e) {
+        console.warn('讀取失敗:', e);
       }
     }
   </script>
