@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 雙圖模式顯示</title>
+  <title>EMG 雙圖 - 原始 + 模式切換</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -32,7 +32,7 @@
   <p id="value">原始數值：--</p>
   <canvas id="emgChart"></canvas>
 
-  <h2 id="zoomTitle">EMG 校正波形圖（含處理）</h2>
+  <h2 id="zoomTitle">EMG 校正波形圖（處理後）</h2>
   <canvas id="zoomChart"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
@@ -54,7 +54,7 @@
 
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
-    let mode = 'raw'; // 預設使用原始值
+    let mode = 'raw';
 
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
@@ -73,14 +73,13 @@
       emgBuffer.push(newValue);
       emgBuffer.shift();
 
-      if (mode === 'raw') {
-        return newValue;
-      } else if (mode === 'mean') {
+      if (mode === 'raw') return newValue;
+      if (mode === 'mean') {
         const sum = emgBuffer.reduce((a, b) => a + b, 0);
         return Math.floor(sum / AVG_WINDOW);
-      } else if (mode === 'max') {
-        return Math.max(...emgBuffer);
-      } else if (mode === 'rms') {
+      }
+      if (mode === 'max') return Math.max(...emgBuffer);
+      if (mode === 'rms') {
         const sumSquares = emgBuffer.reduce((a, b) => a + b * b, 0);
         return Math.floor(Math.sqrt(sumSquares / AVG_WINDOW));
       }
@@ -166,14 +165,15 @@
         const emg = parseInt(text);
 
         if (!isNaN(emg)) {
-          const processed = getProcessedEMG(emg);
-
-          // 原始圖
+          // ✅ 第一圖（絕對原始）
           rawData.push(emg); rawData.shift();
           emgChart.update();
+          document.getElementById('value').innerText = '原始數值：' + emg;
 
-          // 校正處理圖
+          // ✅ 第二圖（校正後 + 模式處理）
+          const processed = getProcessedEMG(emg);
           let adjusted = processed;
+
           if (isCalibrated) {
             if (skipAfterCalibrate > 0) {
               skipAfterCalibrate--;
@@ -183,22 +183,19 @@
               if (adjusted < 0) adjusted = 0;
               if (adjusted > maxAdjusted) {
                 maxAdjusted = adjusted;
-                zoomChart.update(); // 更新紅線
+                zoomChart.update();
               }
             }
           }
 
           const percent = Math.min(100, Math.round((adjusted / maxAdjusted) * 100));
+          zoomData.push(adjusted); zoomData.shift();
+          zoomChart.update();
 
-          // 顯示文字
-          document.getElementById('value').innerText = '原始數值：' + emg;
           document.getElementById('adjusted').innerText = '校正後數值：' + adjusted;
           document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
           document.getElementById('zoomTitle').innerText =
             `EMG 校正波形圖（目前值：${adjusted}）`;
-
-          zoomData.push(adjusted); zoomData.shift();
-          zoomChart.update();
         }
       } catch (e) {
         console.warn('讀取失敗:', e);
