@@ -2,39 +2,53 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 雙波形圖（含基線校正）</title>
+  <title>EMG 雙波形圖（%MVC顯示）</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
-    #value { font-size: 1.2em; margin-top: 10px; }
-    button { margin-right: 10px; }
+    #value, #adjusted, #mvc { font-size: 1.2em; margin-top: 10px; }
+    button {
+      font-size: 1.1em;
+      padding: 10px 20px;
+      margin-right: 10px;
+      margin-bottom: 10px;
+    }
   </style>
 </head>
 <body>
-  <h2>EMG 即時波形圖（雙視角 + 基線校正）</h2>
+  <h2>EMG 即時波形圖（原始 + 校正 + %MVC）</h2>
   <button onclick="connect()">連接藍牙</button>
   <button onclick="calibrateBaseline()">基線校正</button>
-  <p id="value">即時數值：--</p>
-  <h4>一般範圍（0~1023）</h4>
+  <button onclick="resetMax()">重設最大值</button>
+
+  <p id="value">原始數值：--</p>
+  <p id="adjusted">校正後數值：--</p>
+  <p id="mvc">即時強度：-- %</p>
+
+  <h4>原始波形圖（0~1023）</h4>
   <canvas id="emgChart"></canvas>
-  <h4>微幅波動監控（300~400，細緻）</h4>
+
+  <h4>微幅波動監控（校正後數值，0~200）</h4>
   <canvas id="zoomChart"></canvas>
 
   <script>
     let characteristic;
     let baseline = 0;
     let isCalibrated = false;
+    let skipAfterCalibrate = 10;
+    let maxAdjusted = 1; // 避免除以 0
 
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
 
+    // 第一圖：原始 EMG 數值
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
       data: {
         labels: Array(100).fill(''),
         datasets: [{
-          label: 'EMG 數值（扣除基線）',
+          label: '原始 EMG 數值',
           data: rawData,
           borderColor: 'blue',
           borderWidth: 2,
@@ -44,18 +58,17 @@
       options: {
         responsive: true,
         animation: false,
-        scales: {
-          y: { min: 0, max: 1023 } // ← 原始全域範圍（如需更小範圍可改）
-        }
+        scales: { y: { min: 0, max: 1023 } }
       }
     });
 
+    // 第二圖：校正後 + 最大值參考線
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
       type: 'line',
       data: {
         labels: Array(100).fill(''),
         datasets: [{
-          label: '放大區間 (300~400)',
+          label: '校正後 EMG 數值',
           data: zoomData,
           borderColor: 'green',
           borderWidth: 2,
@@ -65,10 +78,28 @@
       options: {
         responsive: true,
         animation: false,
-        scales: {
-          y: { min: 380, max: 350 } // ← 微幅視窗的固定顯示區間
+        scales: { y: { min: 0, max: 200 } },
+        plugins: {
+          annotation: {}
         }
-      }
+      },
+      plugins: [{
+        id: 'maxRefLine',
+        beforeDraw: (chart) => {
+          if (!isCalibrated) return;
+          const y = chart.scales.y.getPixelForValue(maxAdjusted);
+          const ctx = chart.ctx;
+          ctx.save();
+          ctx.beginPath();
+          ctx.moveTo(chart.chartArea.left, y);
+          ctx.lineTo(chart.chartArea.right, y);
+          ctx.strokeStyle = 'rgba(255,0,0,0.6)';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 5]);
+          ctx.stroke();
+          ctx.restore();
+        }
+      }]
     });
 
     async function connect() {
@@ -81,7 +112,7 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
 
-        setInterval(readEMG, 100); // 每 100ms 取樣一次
+        setInterval(readEMG, 100);
       } catch (error) {
         alert('連接失敗：' + error);
       }
@@ -93,10 +124,32 @@
         const value = await characteristic.readValue();
         const text = new TextDecoder('utf-8').decode(value).trim();
         const emg = parseInt(text);
+
         if (!isNaN(emg)) {
-          const adjusted = isCalibrated ? emg - baseline : emg;
-          document.getElementById('value').innerText = '即時數值：' + adjusted;
-          rawData.push(adjusted); rawData.shift();
+          let adjusted = emg;
+          if (isCalibrated) {
+            if (skipAfterCalibrate > 0) {
+              skipAfterCalibrate--;
+              adjusted = 0;
+            } else {
+              adjusted = emg - baseline;
+              if (adjusted < 0) adjusted = 0;
+              if (adjusted > maxAdjusted) {
+                maxAdjusted = adjusted;
+                zoomChart.update(); // 更新紅線
+              }
+            }
+          }
+
+          // 顯示數值
+          document.getElementById('value').innerText = '原始數值：' + emg;
+          document.getElementById('adjusted').innerText = '校正後數值：' + adjusted;
+
+          const percent = Math.min(100, Math.round((adjusted / maxAdjusted) * 100));
+          document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
+
+          // 圖表更新
+          rawData.push(emg); rawData.shift();
           zoomData.push(adjusted); zoomData.shift();
           emgChart.update();
           zoomChart.update();
@@ -113,7 +166,7 @@
       }
 
       let sum = 0, count = 30, i = 0;
-      alert("請保持完全放鬆，正在校正靜態基線...");
+      alert("請放鬆肌肉，開始基線校正...");
       const interval = setInterval(async () => {
         try {
           const value = await characteristic.readValue();
@@ -124,6 +177,8 @@
             if (i >= count) {
               baseline = Math.floor(sum / count);
               isCalibrated = true;
+              skipAfterCalibrate = 10;
+              maxAdjusted = 1; // 重新從 1 開始算
               clearInterval(interval);
               alert('基線設定完成：' + baseline);
             }
@@ -133,6 +188,12 @@
           alert('校正失敗：' + e);
         }
       }, 100);
+    }
+
+    function resetMax() {
+      maxAdjusted = 1;
+      alert('最大值已重設');
+      zoomChart.update();
     }
   </script>
 </body>
