@@ -1,18 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>EMG Bluetooth 測試</title>
+  <meta charset="utf-8" />
+  <title>EMG 即時數值（Polling 版）</title>
 </head>
 <body>
   <h3>EMG 即時數值</h3>
-  <button onclick="connect()">連接藍牙</button>
-  <div id="value">--</div>
+  <button onclick="connectBluetooth()">連接藍牙</button>
+  <p id="value">即時數值：--</p>
 
   <script>
     let characteristic;
 
-    async function connect() {
+    async function connectBluetooth() {
       try {
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'MLT' }],
@@ -23,27 +23,23 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
 
-        document.getElementById('value').innerText = '已連線，開始輪詢數據...';
-
-        pollEMG();
+        console.log("已連接裝置，開始輪詢讀取值");
+        setInterval(readEMG, 100); // 每 100ms 抓一次
       } catch (error) {
-        console.error('連接錯誤：', error);
-        document.getElementById('value').innerText = '錯誤：' + error;
+        console.error('藍牙連接失敗:', error);
       }
     }
 
-    function pollEMG() {
-      const decoder = new TextDecoder('utf-8');
-      setInterval(async () => {
-        try {
-          const value = await characteristic.readValue();
-          const text = decoder.decode(value);
-          console.log('讀取字串：', text.trim());
-          document.getElementById('value').innerText = text.trim();
-        } catch (err) {
-          console.error('讀取失敗：', err);
-        }
-      }, 500); // 每 500ms 輪詢一次
+    async function readEMG() {
+      try {
+        const value = await characteristic.readValue();
+        const decoder = new TextDecoder('utf-8');
+        const emg = decoder.decode(value);
+        document.getElementById('value').innerText = '即時數值：' + emg;
+        console.log('EMG:', emg);
+      } catch (error) {
+        console.warn('讀取失敗:', error);
+      }
     }
   </script>
 </body>
