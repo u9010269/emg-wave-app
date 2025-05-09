@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 雙波形圖（%MVC顯示）</title>
+  <title>EMG 雙波形圖（%MVC + 平滑）</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -13,6 +13,11 @@
       padding: 10px 20px;
       margin-right: 10px;
       margin-bottom: 10px;
+    }
+    #zoomTitle {
+      font-size: 1.1em;
+      font-weight: bold;
+      margin-top: 20px;
     }
   </style>
 </head>
@@ -29,7 +34,7 @@
   <h4>原始波形圖（0~1023）</h4>
   <canvas id="emgChart"></canvas>
 
-  <h4>微幅波動監控（校正後數值，0~200）</h4>
+  <div id="zoomTitle">微幅波動監控（校正後數值，0~200）</div>
   <canvas id="zoomChart"></canvas>
 
   <script>
@@ -37,12 +42,21 @@
     let baseline = 0;
     let isCalibrated = false;
     let skipAfterCalibrate = 10;
-    let maxAdjusted = 1; // 避免除以 0
+    let maxAdjusted = 1;
+
+    const AVG_WINDOW = 10;
+    let emgBuffer = Array(AVG_WINDOW).fill(0);
 
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
 
-    // 第一圖：原始 EMG 數值
+    function getSmoothedEMG(newValue) {
+      emgBuffer.push(newValue);
+      emgBuffer.shift();
+      const sum = emgBuffer.reduce((a, b) => a + b, 0);
+      return Math.floor(sum / AVG_WINDOW);
+    }
+
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
       data: {
@@ -62,7 +76,6 @@
       }
     });
 
-    // 第二圖：校正後 + 最大值參考線
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
       type: 'line',
       data: {
@@ -126,13 +139,15 @@
         const emg = parseInt(text);
 
         if (!isNaN(emg)) {
-          let adjusted = emg;
+          const smoothed = getSmoothedEMG(emg);
+
+          let adjusted = smoothed;
           if (isCalibrated) {
             if (skipAfterCalibrate > 0) {
               skipAfterCalibrate--;
               adjusted = 0;
             } else {
-              adjusted = emg - baseline;
+              adjusted = smoothed - baseline;
               if (adjusted < 0) adjusted = 0;
               if (adjusted > maxAdjusted) {
                 maxAdjusted = adjusted;
@@ -141,15 +156,17 @@
             }
           }
 
-          // 顯示數值
-          document.getElementById('value').innerText = '原始數值：' + emg;
-          document.getElementById('adjusted').innerText = '校正後數值：' + adjusted;
-
           const percent = Math.min(100, Math.round((adjusted / maxAdjusted) * 100));
-          document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
-          // 圖表更新
-          rawData.push(emg); rawData.shift();
+          // 顯示文字資訊
+          document.getElementById('value').innerText = '原始數值：' + smoothed;
+          document.getElementById('adjusted').innerText = '校正後數值：' + adjusted;
+          document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
+          document.getElementById('zoomTitle').innerText =
+            `微幅波動監控（校正後數值，0~200）｜目前值：${adjusted}`;
+
+          // 圖表資料更新
+          rawData.push(smoothed); rawData.shift();
           zoomData.push(adjusted); zoomData.shift();
           emgChart.update();
           zoomChart.update();
@@ -172,13 +189,14 @@
           const value = await characteristic.readValue();
           const emg = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(emg)) {
-            sum += emg;
+            const smoothed = getSmoothedEMG(emg);
+            sum += smoothed;
             i++;
             if (i >= count) {
               baseline = Math.floor(sum / count);
               isCalibrated = true;
               skipAfterCalibrate = 10;
-              maxAdjusted = 1; // 重新從 1 開始算
+              maxAdjusted = 1;
               clearInterval(interval);
               alert('基線設定完成：' + baseline);
             }
