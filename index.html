@@ -1,19 +1,18 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>EMG Web Bluetooth 波形 (Debug版)</title>
+  <meta charset="UTF-8" />
+  <title>EMG Bluetooth 測試</title>
 </head>
 <body>
-  <h3>EMG Web Bluetooth 波形 (Debug版)</h3>
-  <button onclick="connectBLE()">連接藍牙</button>
-  <p>即時數值：<span id="value">--</span></p>
-  <pre id="log" style="border:1px solid #ccc; padding:10px;"></pre>
+  <h3>EMG 即時數值</h3>
+  <button onclick="connect()">連接藍牙</button>
+  <div id="value">--</div>
 
   <script>
     let characteristic;
 
-    async function connectBLE() {
+    async function connect() {
       try {
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'MLT' }],
@@ -24,19 +23,27 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
 
-        const decoder = new TextDecoder('utf-8');
-        characteristic.addEventListener('characteristicvaluechanged', event => {
-          const value = event.target.value;
-          const text = decoder.decode(value);
-          document.getElementById('value').textContent = text.trim();
-          document.getElementById('log').textContent += text;
-        });
+        document.getElementById('value').innerText = '已連線，開始輪詢數據...';
 
-        await characteristic.startNotifications();
-        console.log('已啟用通知');
+        pollEMG();
       } catch (error) {
-        console.error('連線錯誤:', error);
+        console.error('連接錯誤：', error);
+        document.getElementById('value').innerText = '錯誤：' + error;
       }
+    }
+
+    function pollEMG() {
+      const decoder = new TextDecoder('utf-8');
+      setInterval(async () => {
+        try {
+          const value = await characteristic.readValue();
+          const text = decoder.decode(value);
+          console.log('讀取字串：', text.trim());
+          document.getElementById('value').innerText = text.trim();
+        } catch (err) {
+          console.error('讀取失敗：', err);
+        }
+      }, 500); // 每 500ms 輪詢一次
     }
   </script>
 </body>
