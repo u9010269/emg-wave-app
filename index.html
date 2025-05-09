@@ -1,32 +1,62 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <title>EMG 即時數值（Polling 版）</title>
+  <meta charset="UTF-8">
+  <title>EMG 波形顯示</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    canvas { max-width: 100%; height: 300px; }
+    #value { font-size: 1.2em; margin-top: 10px; }
+  </style>
 </head>
 <body>
-  <h3>EMG 即時數值</h3>
-  <button onclick="connectBluetooth()">連接藍牙</button>
+  <h2>EMG 即時波形圖</h2>
+  <button onclick="connect()">連接藍牙</button>
   <p id="value">即時數值：--</p>
+  <canvas id="emgChart"></canvas>
 
   <script>
     let characteristic;
+    const chartData = {
+      labels: Array(100).fill(''),
+      datasets: [{
+        label: 'EMG 數值',
+        data: Array(100).fill(0),
+        borderWidth: 2,
+        borderColor: 'blue',
+        tension: 0.1
+      }]
+    };
 
-    async function connectBluetooth() {
+    const emgChart = new Chart(document.getElementById('emgChart'), {
+      type: 'line',
+      data: chartData,
+      options: {
+        responsive: true,
+        animation: false,
+        scales: {
+          y: {
+            suggestedMin: 0,
+            suggestedMax: 1023
+          }
+        }
+      }
+    });
+
+    async function connect() {
       try {
         const device = await navigator.bluetooth.requestDevice({
           filters: [{ namePrefix: 'MLT' }],
           optionalServices: ['ffe0']
         });
-
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
 
-        console.log("已連接裝置，開始輪詢讀取值");
-        setInterval(readEMG, 100); // 每 100ms 抓一次
+        setInterval(readEMG, 100);
       } catch (error) {
-        console.error('藍牙連接失敗:', error);
+        alert('連接失敗：' + error);
       }
     }
 
@@ -34,9 +64,14 @@
       try {
         const value = await characteristic.readValue();
         const decoder = new TextDecoder('utf-8');
-        const emg = decoder.decode(value);
-        document.getElementById('value').innerText = '即時數值：' + emg;
-        console.log('EMG:', emg);
+        const text = decoder.decode(value).trim();
+        const emgValue = parseInt(text);
+        if (!isNaN(emgValue)) {
+          document.getElementById('value').innerText = '即時數值：' + emgValue;
+          chartData.datasets[0].data.push(emgValue);
+          chartData.datasets[0].data.shift();
+          emgChart.update();
+        }
       } catch (error) {
         console.warn('讀取失敗:', error);
       }
