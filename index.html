@@ -17,6 +17,14 @@
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
+function unlockAudio() {
+  const audio = new Audio("https://u9010269.github.io/emg-wave-app/350.mp3");
+  audio.play().then(() => {
+    console.log("✅ 撥放權限已解鎖");
+  }).catch(e => console.warn("❌ 播放失敗", e));
+}
+
+
 let mp3Enabled = false;
 let lastMP3Time = 0;
 const MP3_PLAY_INTERVAL = 2000;
@@ -41,6 +49,10 @@ function playMP3() {
 
 </script></head>
 <body>
+
+<button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">
+🔓 解鎖聲音播放（請先點此）
+</button>
 <h2>EMG 原始波形圖（地震圖）</h2>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
