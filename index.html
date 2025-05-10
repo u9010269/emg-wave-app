@@ -1,10 +1,11 @@
 <!DOCTYPE html>
+
 <html lang="zh-Hant">
 <head>
-  <meta charset="UTF-8">
-  <title>EMG 回復穩定版（含音效與UI）</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
+<meta charset="utf-8"/>
+<title>EMG 回復穩定版（含音效與UI）</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
     .btn-group { margin-top: 10px; margin-bottom: 10px; }
@@ -18,46 +19,42 @@
   </style>
 </head>
 <body>
-  <h2>EMG 原始波形圖（地震圖）</h2>
-  <div class="btn-group">
-    <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
-    <button onclick="startSoundEngine()" style="background-color:#20c997; color:white;">啟動音效引擎</button>
-    <button onclick="toggleSound()" style="background-color:#dc3545; color:white;">切換音效（目前：開）</button>
-    <label>音效門檻值：<input type="number" id="soundThreshold" value="300" style="width: 80px;"></label>
-    <button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
-  </div>
-  <p id="value">原始數值：--</p>
-  <canvas id="emgChart"></canvas>
+<h2>EMG 原始波形圖（地震圖）</h2>
+<div class="btn-group">
+<button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
 
-  <h2 id="zoomTitle">EMG 校正波形圖（處理模式）
+
+
+<button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
+</div>
+<p id="value">原始數值：--</p>
+<canvas id="emgChart"></canvas>
+<h2 id="zoomTitle">EMG 校正波形圖（處理模式）
     <button onclick="performCalibration()" style="background-color:#ffc107; color:black; font-size: 0.9em; margin-left: 10px;">📍 校正</button>
-  </h2>
-  <canvas id="zoomChart"></canvas>
-  <p id="adjusted">校正後數值：--</p>
-  <p id="mvc">即時強度：-- %</p>
-
-  <div class="btn-group">
-    <label>校正數值倍率：
+</h2>
+<canvas id="zoomChart"></canvas>
+<p id="adjusted">校正後數值：--</p>
+<p id="mvc">即時強度：-- %</p>
+<div class="btn-group">
+<label>校正數值倍率：
       <select id="amplifyRate">
-        <option value="1">100%</option>
-        <option value="1.2">120%</option>
-        <option value="1.4">140%</option>
-        <option value="1.6">160%</option>
-        <option value="1.8">180%</option>
-        <option value="2">200%</option>
-      </select>
-    </label>
-  </div>
-
-  <div class="btn-group">
-    <button onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始</button>
-    <button onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均</button>
-    <button onclick="setMode('max')" style="background-color:#17a2b8; color:white;">最大值</button>
-    <button onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
-    <button onclick="resetMax()" style="background-color:#6c757d; color:white;">重設最大值</button>
-  </div>
-
-  <script>
+<option value="1">100%</option>
+<option value="1.2">120%</option>
+<option value="1.4">140%</option>
+<option value="1.6">160%</option>
+<option value="1.8">180%</option>
+<option value="2">200%</option>
+</select>
+</label>
+</div>
+<div class="btn-group">
+<button onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始</button>
+<button onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均</button>
+<button onclick="setMode('max')" style="background-color:#17a2b8; color:white;">最大值</button>
+<button onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
+<button onclick="resetMax()" style="background-color:#6c757d; color:white;">重設最大值</button>
+</div>
+<script>
     let characteristic, pauseBtn = null;
     
     let calibrationBaseline = 0, maxAdjusted = 1;
