@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 原始 + 處理雙圖顯示</title>
+  <title>EMG 地震圖 + 處理波形</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -20,17 +20,21 @@
       padding: 8px 16px;
       margin-right: 10px;
       margin-bottom: 6px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <h2>EMG 原始波形圖（鋸齒狀）</h2>
+  <h2>EMG 原始波形圖（地震圖）</h2>
   <div class="btn-group">
-    <button onclick="connect()">連接藍牙</button>
-    <button onclick="calibrateBaseline()">基線校正</button>
+    <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
+    <button onclick="calibrateBaseline()" style="background-color:#ffc107; color:black;">基線校正</button>
+    <button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
   </div>
   <p id="value">原始數值：--</p>
-  <canvas id="emgChart"></canvas>
+  <canvas id="emgChart" style="width: 100%; max-width: 1400px;"></canvas>
 
   <h2 id="zoomTitle">EMG 校正波形圖（處理模式）</h2>
   <canvas id="zoomChart"></canvas>
@@ -38,11 +42,11 @@
   <p id="mvc">即時強度：-- %</p>
 
   <div class="btn-group">
-    <button onclick="setMode('raw')">原始</button>
-    <button onclick="setMode('mean')">平均</button>
-    <button onclick="setMode('max')">最大值</button>
-    <button onclick="setMode('rms')">RMS</button>
-    <button onclick="resetMax()">重設最大值</button>
+    <button onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始</button>
+    <button onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均</button>
+    <button onclick="setMode('max')" style="background-color:#17a2b8; color:white;">最大值</button>
+    <button onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
+    <button onclick="resetMax()" style="background-color:#6c757d; color:white;">重設最大值</button>
   </div>
 
   <script>
@@ -51,12 +55,14 @@
     let isCalibrated = false;
     let skipAfterCalibrate = 10;
     let maxAdjusted = 1;
+    let isPaused = false;
+    let pauseBtn = null;
 
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     let mode = 'raw';
 
-    const rawData = Array(50).fill(0);
+    const rawData = Array(100).fill(0);
     const zoomData = Array(50).fill(0);
 
     function setMode(newMode) {
@@ -86,13 +92,13 @@
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
       data: {
-        labels: Array(50).fill(''),
+        labels: Array(100).fill(''),
         datasets: [{
           label: '原始 EMG 數值',
           data: rawData,
           borderColor: 'blue',
-          borderWidth: 1,
-          tension: 0 // 鋸齒狀線條
+          borderWidth: 0.8,
+          tension: 0
         }]
       },
       options: {
@@ -120,7 +126,7 @@
         responsive: true,
         animation: false,
         scales: {
-          y: { min: -100, max: 200 } // 可顯示負值
+          y: { min: -100, max: 200 }
         }
       },
       plugins: [{
@@ -151,26 +157,33 @@
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
-        setInterval(readEMG, 10); // 每 20ms 更新 → 50Hz
+        pauseBtn = document.getElementById('pauseBtn');
+        setInterval(readEMG, 10); // 100Hz 更新
       } catch (error) {
         alert('連接失敗：' + error);
       }
     }
 
+    function togglePause() {
+      isPaused = !isPaused;
+      if (pauseBtn) {
+        pauseBtn.innerText = isPaused ? "恢復" : "暫停";
+        pauseBtn.style.backgroundColor = isPaused ? "#dc3545" : "#007BFF";
+      }
+    }
+
     async function readEMG() {
-      if (!characteristic) return;
+      if (!characteristic || isPaused) return;
       try {
         const value = await characteristic.readValue();
         const text = new TextDecoder('utf-8').decode(value).trim();
         const emg = parseInt(text);
 
         if (!isNaN(emg)) {
-          // 第一圖：完全原始值
           rawData.push(emg); rawData.shift();
           emgChart.update();
           document.getElementById('value').innerText = '原始數值：' + emg;
 
-          // 第二圖：處理模式數值
           const processed = getProcessedEMG(emg);
           let adjusted = processed;
 
@@ -180,7 +193,6 @@
               adjusted = 0;
             } else {
               adjusted = processed - baseline;
-              // ✅ 保留負值，不做限制
               if (adjusted > maxAdjusted) {
                 maxAdjusted = adjusted;
                 zoomChart.update();
