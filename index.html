@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 地震圖 + 處理波形</title>
+  <title>EMG 雙圖顯示（地震圖 + 處理圖 + 暫停鍵）</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -37,7 +37,7 @@
   <canvas id="emgChart" style="width: 100%; max-width: 1400px;"></canvas>
 
   <h2 id="zoomTitle">EMG 校正波形圖（處理模式）</h2>
-  <canvas id="zoomChart"></canvas>
+  <canvas id="zoomChart" style="width: 100%; max-width: 1400px;"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
 
@@ -63,7 +63,7 @@
     let mode = 'raw';
 
     const rawData = Array(100).fill(0);
-    const zoomData = Array(50).fill(0);
+    const zoomData = Array(100).fill(0);
 
     function setMode(newMode) {
       mode = newMode;
@@ -78,7 +78,6 @@
     function getProcessedEMG(newValue) {
       emgBuffer.push(newValue);
       emgBuffer.shift();
-
       if (mode === 'raw') return newValue;
       if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
       if (mode === 'max') return Math.max(...emgBuffer);
@@ -113,12 +112,12 @@
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
       type: 'line',
       data: {
-        labels: Array(50).fill(''),
+        labels: Array(100).fill(''),
         datasets: [{
           label: '處理後 EMG（校正）',
           data: zoomData,
           borderColor: 'green',
-          borderWidth: 1,
+          borderWidth: 0.8,
           tension: 0
         }]
       },
@@ -158,7 +157,7 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
         pauseBtn = document.getElementById('pauseBtn');
-        setInterval(readEMG, 10); // 100Hz 更新
+        setInterval(readEMG, 10);
       } catch (error) {
         alert('連接失敗：' + error);
       }
