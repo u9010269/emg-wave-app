@@ -186,12 +186,31 @@ let mp3Played = false;
 let mp3Player = null;
 let lastEMG = 0;
 
+
 function toggleMp3() {
   mp3Enabled = !mp3Enabled;
   const btn = document.getElementById("toggleMp3Btn");
   if (btn) {
     btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
   }
+
+  if (mp3Enabled && mp3Player) {
+    // ✅ 播放一次聲音來解鎖音訊權限（0.3 秒後暫停）
+    mp3Player.currentTime = 0;
+    mp3Player.play()
+      .then(() => {
+        setTimeout(() => {
+          mp3Player.pause();
+          mp3Player.currentTime = 0;
+        }, 300);
+      })
+      .catch(err => {
+        console.warn("音訊初始化被阻擋", err);
+        alert("⚠️ 音訊播放初始化失敗，請再次點擊按鈕");
+      });
+  }
+}
+
 }
 
 window.addEventListener("DOMContentLoaded", () => {
@@ -266,12 +285,31 @@ window.addEventListener("DOMContentLoaded", () => {
   mp3Player = document.getElementById("mp3Player");
 });
 
+
 function toggleMp3() {
   mp3Enabled = !mp3Enabled;
   const btn = document.getElementById("toggleMp3Btn");
   if (btn) {
     btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
   }
+
+  if (mp3Enabled && mp3Player) {
+    // ✅ 播放一次聲音來解鎖音訊權限（0.3 秒後暫停）
+    mp3Player.currentTime = 0;
+    mp3Player.play()
+      .then(() => {
+        setTimeout(() => {
+          mp3Player.pause();
+          mp3Player.currentTime = 0;
+        }, 300);
+      })
+      .catch(err => {
+        console.warn("音訊初始化被阻擋", err);
+        alert("⚠️ 音訊播放初始化失敗，請再次點擊按鈕");
+      });
+  }
+}
+
   
 if (mp3Enabled && mp3Player) {
     if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
@@ -410,12 +448,31 @@ window.addEventListener("DOMContentLoaded", () => {
   mp3Player = document.getElementById("mp3Player");
 });
 
+
 function toggleMp3() {
   mp3Enabled = !mp3Enabled;
   const btn = document.getElementById("toggleMp3Btn");
   if (btn) {
     btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
   }
+
+  if (mp3Enabled && mp3Player) {
+    // ✅ 播放一次聲音來解鎖音訊權限（0.3 秒後暫停）
+    mp3Player.currentTime = 0;
+    mp3Player.play()
+      .then(() => {
+        setTimeout(() => {
+          mp3Player.pause();
+          mp3Player.currentTime = 0;
+        }, 300);
+      })
+      .catch(err => {
+        console.warn("音訊初始化被阻擋", err);
+        alert("⚠️ 音訊播放初始化失敗，請再次點擊按鈕");
+      });
+  }
+}
+
   
 if (mp3Enabled && mp3Player) {
     if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
