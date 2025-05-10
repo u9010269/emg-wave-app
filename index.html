@@ -17,9 +17,24 @@
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
+let mp3PlayCount = 0;
+
+function unlockAudio() {
+  const mp3 = document.getElementById("mp3Player");
+  mp3.play().then(() => {
+    mp3.pause();
+    mp3.currentTime = 0;
+    document.getElementById("playStatus").innerText = "✅ 已解鎖 MP3 播放功能";
+    document.getElementById("playStatus").style.color = "green";
+  }).catch(err => {
+    document.getElementById("playStatus").innerText = "❌ 撥放解鎖失敗";
+    document.getElementById("playStatus").style.color = "red";
+  });
+}
+
 </script></head>
 <body>
-<h2>EMG 原始波形圖（地震圖）</h2>
+<h2>EMG 原始波形圖（地震圖）</h2><p id="playStatus" style="font-weight:bold; color:#0056b3;"></p><p id="playCount" style="font-weight:bold; color:#333;">已播放次數：0</p>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
 <label>MP3門檻值：<input id="mp3Threshold" style="width: 80px;" type="number" value="350"/></label>
