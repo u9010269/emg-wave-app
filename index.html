@@ -114,15 +114,7 @@
     }
 
     function startSoundEngine() {
-      if (!audioCtx) {
-        audioCtx = new AudioContext();
-        gainNode = audioCtx.createGain();
-        gainNode.connect(audioCtx.destination);
-        oscillator = audioCtx.createOscillator();
-        oscillator.connect(gainNode);
-        oscillator.start();
-        gainNode.gain.value = 0;
-      }
+      console.log("音效引擎初始化完成（GitHub MP3 模式）");
     }
 
     function toggleSound() {
@@ -135,10 +127,7 @@
       alert("請保持放鬆，開始校正...");
       const interval = setInterval(async () => {
         const value = await characteristic.readValue();
-        const text = new TextDecoder().decode(value);
-        const match = text.match(/\d+/);
-        if (!match) return;
-        const emg = parseInt(match[0]);
+        const emg = parseInt(new TextDecoder().decode(value).trim());
         if (!isNaN(emg)) {
           sum += emg;
           count++;
@@ -155,10 +144,7 @@
     async function readEMG() {
       if (!characteristic || isPaused) return;
       const value = await characteristic.readValue();
-      const text = new TextDecoder().decode(value);
-        const match = text.match(/\d+/);
-        if (!match) return;
-        const emg = parseInt(match[0]);
+      const emg = parseInt(new TextDecoder().decode(value).trim());
       if (isNaN(emg)) return;
 
       rawData.push(emg); rawData.shift(); emgChart.update();
@@ -175,24 +161,12 @@
       document.getElementById('value').innerText = '原始數值：' + emg;
       document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
-      if (amplifiedAdjusted >= 350 && amplifiedAdjusted <= 400) {
-        if (!window.gitSound) {
-          window.gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
-          window.gitSound.volume = 1.0;
-        }
-        const clone = window.gitSound.cloneNode();
-        clone.play().catch(e => console.warn("音效播放失敗：", e));
-      }
-    
 
       const threshold = parseInt(document.getElementById('soundThreshold').value);
-      if (audioCtx && oscillator && gainNode) {
-        if (soundEnabled && emg > threshold) {
-          oscillator.frequency.setValueAtTime(100 + (emg - threshold) * 2, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        } else {
-          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-        }
+      if (soundEnabled && emg > threshold) {
+        const gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
+        gitSound.volume = 1.0;
+        gitSound.play().catch(e => console.warn("音效播放失敗：", e));
       }
     }
   </script>
