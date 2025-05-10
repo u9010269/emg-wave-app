@@ -20,7 +20,32 @@
 let audioContext = null;
 let mp3Buffer = null;
 let mp3Enabled = false;
-let lastEMG = 0;
+let mp3Played = false;
+
+function toggleMp3() {
+  mp3Enabled = !mp3Enabled;
+  document.getElementById("toggleMp3Btn").innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
+
+  if (mp3Enabled && !audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    fetch("https://u9010269.github.io/emg-wave-app/350.mp3")
+      .then(res => res.arrayBuffer())
+      .then(buf => audioContext.decodeAudioData(buf))
+      .then(decoded => {
+        mp3Buffer = decoded;
+        console.log("✅ MP3 buffer 載入完成");
+      })
+      .catch(err => console.error("❌ MP3 載入錯誤", err));
+  }
+}
+
+function playMP3() {
+  if (!audioContext || !mp3Buffer) return;
+  const source = audioContext.createBufferSource();
+  source.buffer = mp3Buffer;
+  source.connect(audioContext.destination);
+  source.start();
+}
 
 
 </script></head>
