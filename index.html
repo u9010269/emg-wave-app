@@ -9,12 +9,10 @@
     canvas { max-width: 100%; height: 250px; }
     #value, #adjusted, #mvc, #zoomTitle {
       font-size: 1.2em;
-      margin-top: 10px;
-    }
+      margin-top: 10px; }
     .btn-group {
       margin-top: 10px;
-      margin-bottom: 10px;
-    }
+      margin-bottom: 10px; }
     button {
       font-size: 1.1em;
       padding: 8px 16px;
@@ -22,8 +20,7 @@
       margin-bottom: 6px;
       border: none;
       border-radius: 5px;
-      cursor: pointer;
-    }
+      cursor: pointer; }
   </style>
 </head>
 <body>
@@ -32,6 +29,7 @@
     <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
     <button onclick="calibrateBaseline()" style="background-color:#ffc107; color:black;">基線校正</button>
     <button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
+    <button onclick="initAudio()" style="background-color:#6f42c1; color:white;">啟動音效</button>
   </div>
   <p id="value">原始數值：--</p>
   <canvas id="emgChart" style="width: 100%; max-width: 1400px;"></canvas>
@@ -64,95 +62,49 @@
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
 
-    // 音效控制
     let audioCtx = null;
     let oscillator = null;
     let gainNode = null;
 
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        gainNode = audioCtx.createGain();
+        gainNode.connect(audioCtx.destination);
+        gainNode.gain.value = 0;
+        oscillator = audioCtx.createOscillator();
+        oscillator.type = 'sawtooth';
+        oscillator.frequency.setValueAtTime(100, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        oscillator.start();
+        alert("音效已啟動，握拳即可聽到油門聲");
+      }
+    }
+
     function setMode(newMode) {
       mode = newMode;
       alert('處理模式已切換為：' + {
-        raw: '原始值',
-        mean: '平滑平均',
-        max: '滑動最大值',
-        rms: 'RMS（平方平均根）'
+        raw: '原始值', mean: '平滑平均', max: '滑動最大值', rms: 'RMS（平方平均根）'
       }[mode]);
     }
 
-    function getProcessedEMG(newValue) {
-      emgBuffer.push(newValue);
-      emgBuffer.shift();
-      if (mode === 'raw') return newValue;
-      if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
-      if (mode === 'max') return Math.max(...emgBuffer);
-      if (mode === 'rms') {
-        const sumSquares = emgBuffer.reduce((a, b) => a + b * b, 0);
-        return Math.floor(Math.sqrt(sumSquares / AVG_WINDOW));
-      }
-      return newValue;
-    }
-
     const emgChart = new Chart(document.getElementById('emgChart'), {
-      type: 'line',
-      data: {
-        labels: Array(100).fill(''),
-        datasets: [{
-          label: '原始 EMG 數值',
-          data: rawData,
-          borderColor: 'blue',
-          borderWidth: 0.8,
-          tension: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        scales: {
-          y: { suggestedMin: 0, suggestedMax: 1023 }
-        }
-      }
+      type: 'line', data: { labels: Array(100).fill(''), datasets: [{
+        label: '原始 EMG 數值', data: rawData, borderColor: 'blue', borderWidth: 0.8, tension: 0
+      }]},
+      options: { responsive: true, animation: false, scales: { y: { suggestedMin: 0, suggestedMax: 1023 }}}
     });
 
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
-      type: 'line',
-      data: {
-        labels: Array(100).fill(''),
-        datasets: [{
-          label: '處理後 EMG（校正）',
-          data: zoomData,
-          borderColor: 'green',
-          borderWidth: 0.8,
-          tension: 0
-        }]
-      },
-      options: {
-        responsive: true,
-        animation: false,
-        scales: {
-          y: { min: -100, max: 200 }
-        }
-      }
+      type: 'line', data: { labels: Array(100).fill(''), datasets: [{
+        label: '處理後 EMG（校正）', data: zoomData, borderColor: 'green', borderWidth: 0.8, tension: 0
+      }]},
+      options: { responsive: true, animation: false, scales: { y: { min: -100, max: 200 }}}
     });
 
     async function connect() {
       try {
-        // 建立音效引擎（放在互動事件內）
-        if (!audioCtx) {
-          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-          gainNode = audioCtx.createGain();
-          gainNode.connect(audioCtx.destination);
-          gainNode.gain.value = 0;
-          oscillator = audioCtx.createOscillator();
-          oscillator.type = 'sawtooth';
-          oscillator.frequency.setValueAtTime(100, audioCtx.currentTime);
-          oscillator.connect(gainNode);
-          oscillator.start();
-        }
-
-        const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'MLT' }],
-          optionalServices: ['ffe0']
-        });
+        const device = await navigator.bluetooth.requestDevice({ filters: [{ namePrefix: 'MLT' }], optionalServices: ['ffe0'] });
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
@@ -169,6 +121,12 @@
         pauseBtn.innerText = isPaused ? "恢復" : "暫停";
         pauseBtn.style.backgroundColor = isPaused ? "#dc3545" : "#007BFF";
       }
+      if (gainNode && oscillator) {
+        if (isPaused) {
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          oscillator.frequency.setValueAtTime(100, audioCtx.currentTime);
+        }
+      }
     }
 
     async function readEMG() {
@@ -179,56 +137,40 @@
         const emg = parseInt(text);
 
         if (!isNaN(emg)) {
-          rawData.push(emg); rawData.shift();
-          emgChart.update();
+          rawData.push(emg); rawData.shift(); emgChart.update();
           document.getElementById('value').innerText = '原始數值：' + emg;
-
           const processed = getProcessedEMG(emg);
           let adjusted = processed;
-
           if (isCalibrated) {
             if (skipAfterCalibrate > 0) {
-              skipAfterCalibrate--;
-              adjusted = 0;
+              skipAfterCalibrate--; adjusted = 0;
             } else {
               adjusted = processed - baseline;
-              if (adjusted > maxAdjusted) {
-                maxAdjusted = adjusted;
-                zoomChart.update();
-              }
+              if (adjusted > maxAdjusted) { maxAdjusted = adjusted; zoomChart.update(); }
             }
           }
-
           const percent = Math.min(100, Math.round((adjusted / maxAdjusted) * 100));
-          zoomData.push(adjusted); zoomData.shift();
-          zoomChart.update();
-
+          zoomData.push(adjusted); zoomData.shift(); zoomChart.update();
           document.getElementById('adjusted').innerText = '校正後數值：' + adjusted;
           document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
-          document.getElementById('zoomTitle').innerText =
-            `EMG 校正波形圖（目前值：${adjusted}）`;
+          document.getElementById('zoomTitle').innerText = `EMG 校正波形圖（目前值：${adjusted}）`;
 
-          // 音效動態控制
-          const threshold = 300;
-          if (emg > threshold) {
-            const freq = 100 + (emg - threshold) * 2;
-            oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-          } else {
-            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+          if (audioCtx && oscillator && gainNode) {
+            const threshold = 300;
+            if (emg > threshold) {
+              const freq = 100 + (emg - threshold) * 2;
+              oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
+              gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            } else {
+              gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+            }
           }
         }
-      } catch (e) {
-        console.warn('讀取失敗:', e);
-      }
+      } catch (e) { console.warn('讀取失敗:', e); }
     }
 
     async function calibrateBaseline() {
-      if (!characteristic) {
-        alert("請先連接藍牙裝置");
-        return;
-      }
-
+      if (!characteristic) { alert("請先連接藍牙裝置"); return; }
       let sum = 0, count = 30, i = 0;
       alert("請放鬆肌肉，開始基線校正...");
       const interval = setInterval(async () => {
@@ -237,13 +179,10 @@
           const emg = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(emg)) {
             const processed = getProcessedEMG(emg);
-            sum += processed;
-            i++;
+            sum += processed; i++;
             if (i >= count) {
               baseline = Math.floor(sum / count);
-              isCalibrated = true;
-              skipAfterCalibrate = 10;
-              maxAdjusted = 1;
+              isCalibrated = true; skipAfterCalibrate = 10; maxAdjusted = 1;
               clearInterval(interval);
               alert('基線設定完成：' + baseline);
             }
