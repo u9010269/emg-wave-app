@@ -4,7 +4,6 @@
 <head>
 <meta charset="utf-8"/>
 <title>EMG 回復穩定版（含音效與UI）</title>
-
 <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
@@ -17,7 +16,7 @@
       font-size: 1em; margin-left: 10px;
     }
   </style>
-</head>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
 <body>
 <h2>EMG 原始波形圖（地震圖）</h2>
 <div class="btn-group">
@@ -179,9 +178,7 @@
       }
     }
   </script>
-
 <audio id="mp3Player" preload="auto" src="https://hao-ai-rehab.github.io/emg-audio/throttle.mp3"></audio>
-
 <script>
 let mp3Enabled = false;
 let mp3Played = false;
