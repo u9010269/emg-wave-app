@@ -183,7 +183,7 @@
           const value = await characteristic.readValue();
           const emg = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(emg)) {
-            sum += getProcessedEMG(emg);
+            sum += emg;
             count++;
             if (count >= 100) {
               calibrationBaseline = sum / count;
