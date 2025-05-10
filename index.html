@@ -201,9 +201,10 @@
       if (!characteristic || isPaused) return;
       try {
         const value = await characteristic.readValue();
-        const text = new TextDecoder().decode(value).trim();
-        if (!/^\d+$/.test(text)) return;
-        const emg = parseInt(text);
+        const text = new TextDecoder().decode(value);
+        const match = text.match(/\d+/);
+        if (!match) return;
+        const emg = parseInt(match[0]);
         rawData.push(emg); rawData.shift(); emgChart.update();
 
         const processed = getProcessedEMG(emg);
