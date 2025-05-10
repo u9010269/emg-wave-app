@@ -17,26 +17,8 @@
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
-function unlockAudio() {
-  const mp3 = document.getElementById("mp3Player");
-  if (mp3) {
-    mp3.play().then(() => {
-      mp3.pause();
-      mp3.currentTime = 0;
-      console.log("✅ MP3 撥放已解鎖");
-    }).catch(err => {
-      console.warn("❌ 撥放解鎖失敗：", err);
-    });
-  }
-}
-
-
 </script></head>
 <body>
-
-<button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">
-🔓 解鎖聲音播放（請先點此）
-</button>
 <h2>EMG 原始波形圖（地震圖）</h2>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
