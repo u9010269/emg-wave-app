@@ -209,7 +209,8 @@
           document.getElementById('value').innerText = '原始數值：' + emg;
 
           const processed = getProcessedEMG(emg);
-          const adjusted = processed - calibrationBaseline;
+          let adjusted = processed - calibrationBaseline;
+          if (adjusted < 0) adjusted = 0;
           const amplify = parseFloat(document.getElementById('amplifyRate').value) || 1;
           const amplifiedAdjusted = Math.floor(adjusted * amplify);
           if (amplifiedAdjusted > maxAdjusted) { maxAdjusted = amplifiedAdjusted; }
@@ -229,10 +230,10 @@
           if (audioCtx && oscillator && gainNode) {
             if (soundEnabled && emg > soundThreshold) {
               const freq = Math.min(800, 100 + (emg - soundThreshold) * 1.5);
-              oscillator.frequency.setValueAtTime(freq, audioCtx.currentTime);
-              gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
+              oscillator.frequency.exponentialRampToValueAtTime(freq, audioCtx.currentTime + 0.1);
+              gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.1);
             } else {
-              gainNode.gain.setValueAtTime(0.0, audioCtx.currentTime);
+              gainNode.gain.linearRampToValueAtTime(0.0, audioCtx.currentTime + 0.2);
             }
           }
         }
