@@ -36,7 +36,7 @@
   </style>
 </head>
 <body>
-  <h2>EMG 原始波形圖（地震圖）</h2>
+  <h2>EMG 原始波形圖（豪哥用1.12）</h2>
   <div class="btn-group">
     <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
     <button onclick="startSoundEngine()" style="background-color:#20c997; color:white;">啟動音效引擎</button>
@@ -200,7 +200,13 @@
           zoomData.push(amplifiedAdjusted); zoomData.shift(); zoomChart.update();
           document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
           document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
-          document.getElementById('zoomTitle').innerText = `EMG 校正波形圖（目前值：${amplifiedAdjusted}）`;
+          
+    const zoomTitleEl = document.getElementById('zoomTitle');
+    const titleText = `EMG 校正波形圖（目前值：${amplifiedAdjusted}）`;
+    const existingButton = zoomTitleEl.querySelector('button');
+    zoomTitleEl.innerHTML = titleText;
+    if (existingButton) zoomTitleEl.appendChild(existingButton);
+    ;
 
           const soundThreshold = parseInt(document.getElementById('soundThreshold').value) || 300;
           if (audioCtx && oscillator && gainNode) {
