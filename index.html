@@ -17,51 +17,23 @@
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
-let audioCtx = null;
-let mp3Buffer = null;
-
-async function unlockAudio() {
-  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  await audioCtx.resume();
-  console.log("🔓 音訊已解鎖");
-
-  const response = await fetch("https://u9010269.github.io/emg-wave-app/350.mp3");
-  const arrayBuffer = await response.arrayBuffer();
-  mp3Buffer = await audioCtx.decodeAudioData(arrayBuffer);
-  console.log("✅ MP3 已載入並解碼完成");
-}
-
-
-function playMP3() {
-  if (!audioCtx || !mp3Buffer) return;
-  audioCtx.resume().then(() => {
-    const source = audioCtx.createBufferSource();
-    source.buffer = mp3Buffer;
-    source.connect(audioCtx.destination);
-    source.start();
-    console.log("✅ 撥放 MP3 成功");
-  }).catch(e => console.warn("❌ 撥放失敗", e));
-
-}
-
-let mp3Enabled = false;
-let lastMP3Time = 0;
-const MP3_PLAY_INTERVAL = 2000;
-
-function toggleMp3() {
-  mp3Enabled = !mp3Enabled;
-  const btn = document.getElementById("toggleMp3Btn");
-  if (btn) {
-    btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
+function unlockAudio() {
+  const mp3 = document.getElementById("mp3Player");
+  if (mp3) {
+    mp3.play().then(() => {
+      mp3.pause();
+      mp3.currentTime = 0;
+      console.log("✅ MP3 撥放已解鎖");
+    }).catch(err => {
+      console.warn("❌ 撥放解鎖失敗：", err);
+    });
   }
-}
-
-
 }
 
 
 </script></head>
 <body>
+
 <button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">
 🔓 解鎖聲音播放（請先點此）
 </button>
