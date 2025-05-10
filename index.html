@@ -19,24 +19,61 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
 let mp3PlayCount = 0;
 
+
+
 function unlockAudio() {
+  const status = document.getElementById("playStatus");
   const mp3 = document.getElementById("mp3Player");
-  mp3.play().then(() => {
-      mp3Played = true;
-      mp3PlayCount++;
-      document.getElementById("playCount").innerText = "已播放次數：" + mp3PlayCount;
-    mp3.pause();
-    mp3.currentTime = 0;
-    document.getElementById("playStatus").innerText = "✅ 已解鎖 MP3 播放功能";
-    document.getElementById("playStatus").style.color = "green";
-  }).catch(err => {
-    document.getElementById("playStatus").innerText = "❌ 撥放解鎖失敗";
-    document.getElementById("playStatus").style.color = "red";
-  });
+
+  // 先立刻顯示畫面回饋
+  status.innerText = "🔓 嘗試解鎖中...";
+  status.style.color = "#444";
+
+  if (!mp3) {
+    status.innerText = "❌ 找不到 MP3 播放器";
+    status.style.color = "red";
+    return;
+  }
+
+  // 嘗試播放來解鎖
+  try {
+    let playPromise = mp3.play();
+    if (playPromise !== undefined) {
+      playPromise.then(() => {
+        mp3.pause();
+        mp3.currentTime = 0;
+        status.innerText = "✅ 撥放已解鎖（已觸發過播放）";
+        status.style.color = "green";
+      }).catch((err) => {
+        status.innerText = "❌ 撥放失敗（可能尚未與使用者互動）";
+        status.style.color = "red";
+      });
+    } else {
+      status.innerText = "⚠️ 撥放 promise 無效（環境限制）";
+      status.style.color = "orange";
+    }
+  } catch (err) {
+    status.innerText = "❌ 撥放解鎖時出現錯誤";
+    status.style.color = "red";
+  }
 }
 
+
+  try {
+    mp3.play();
+    mp3.pause();
+    mp3.currentTime = 0;
+    status.innerText = "✅ 已解鎖 MP3 播放功能（可能無聲測試）";
+    status.style.color = "green";
+  } catch (err) {
+    status.innerText = "❌ 解鎖失敗（瀏覽器限制）";
+    status.style.color = "red";
+  }
+}
+
+
 </script></head>
-<body><button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">🔓 解鎖聲音播放</button>
+<body><button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">🔓 解鎖聲音播放</button><button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">🔓 解鎖聲音播放</button>
 <h2>EMG 原始波形圖（地震圖）</h2><p id="playStatus" style="font-weight:bold; color:#0056b3;"></p><p id="playCount" style="font-weight:bold; color:#333;">已播放次數：0</p>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
