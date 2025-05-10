@@ -31,12 +31,17 @@ async function unlockAudio() {
   console.log("✅ MP3 已載入並解碼完成");
 }
 
+
 function playMP3() {
   if (!audioCtx || !mp3Buffer) return;
-  const source = audioCtx.createBufferSource();
-  source.buffer = mp3Buffer;
-  source.connect(audioCtx.destination);
-  source.start();
+  audioCtx.resume().then(() => {
+    const source = audioCtx.createBufferSource();
+    source.buffer = mp3Buffer;
+    source.connect(audioCtx.destination);
+    source.start();
+    console.log("✅ 撥放 MP3 成功");
+  }).catch(e => console.warn("❌ 撥放失敗", e));
+
 }
 
 let mp3Enabled = false;
@@ -57,7 +62,6 @@ function toggleMp3() {
 
 </script></head>
 <body>
-
 <button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">
 🔓 解鎖聲音播放（請先點此）
 </button>
