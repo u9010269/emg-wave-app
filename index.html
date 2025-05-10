@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <title>EMG 雙圖 - 原始 + 模式切換</title>
+  <title>EMG 原始 + 處理雙圖顯示</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
@@ -24,7 +24,7 @@
   </style>
 </head>
 <body>
-  <h2>EMG 原始波形圖（不處理）</h2>
+  <h2>EMG 原始波形圖（鋸齒狀）</h2>
   <div class="btn-group">
     <button onclick="connect()">連接藍牙</button>
     <button onclick="calibrateBaseline()">基線校正</button>
@@ -32,15 +32,15 @@
   <p id="value">原始數值：--</p>
   <canvas id="emgChart"></canvas>
 
-  <h2 id="zoomTitle">EMG 校正波形圖（處理後）</h2>
+  <h2 id="zoomTitle">EMG 校正波形圖（處理模式）</h2>
   <canvas id="zoomChart"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
 
   <div class="btn-group">
-    <button onclick="setMode('raw')">原始數值</button>
+    <button onclick="setMode('raw')">原始</button>
     <button onclick="setMode('mean')">平均</button>
-    <button onclick="setMode('max')">滑動最大值</button>
+    <button onclick="setMode('max')">最大值</button>
     <button onclick="setMode('rms')">RMS</button>
     <button onclick="resetMax()">重設最大值</button>
   </div>
@@ -56,8 +56,8 @@
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     let mode = 'raw';
 
-    const rawData = Array(100).fill(0);
-    const zoomData = Array(100).fill(0);
+    const rawData = Array(50).fill(0);
+    const zoomData = Array(50).fill(0);
 
     function setMode(newMode) {
       mode = newMode;
@@ -74,54 +74,54 @@
       emgBuffer.shift();
 
       if (mode === 'raw') return newValue;
-      if (mode === 'mean') {
-        const sum = emgBuffer.reduce((a, b) => a + b, 0);
-        return Math.floor(sum / AVG_WINDOW);
-      }
+      if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
       if (mode === 'max') return Math.max(...emgBuffer);
       if (mode === 'rms') {
         const sumSquares = emgBuffer.reduce((a, b) => a + b * b, 0);
         return Math.floor(Math.sqrt(sumSquares / AVG_WINDOW));
       }
-
       return newValue;
     }
 
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
       data: {
-        labels: Array(100).fill(''),
+        labels: Array(50).fill(''),
         datasets: [{
           label: '原始 EMG 數值',
           data: rawData,
           borderColor: 'blue',
-          borderWidth: 2,
-          tension: 0.1
+          borderWidth: 1,
+          tension: 0 // 鋸齒狀線條
         }]
       },
       options: {
         responsive: true,
         animation: false,
-        scales: { y: { min: 0, max: 1023 } }
+        scales: {
+          y: { suggestedMin: 0, suggestedMax: 1023 }
+        }
       }
     });
 
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
       type: 'line',
       data: {
-        labels: Array(100).fill(''),
+        labels: Array(50).fill(''),
         datasets: [{
           label: '處理後 EMG（校正）',
           data: zoomData,
           borderColor: 'green',
-          borderWidth: 2,
-          tension: 0.1
+          borderWidth: 1,
+          tension: 0
         }]
       },
       options: {
         responsive: true,
         animation: false,
-        scales: { y: { min: 0, max: 200 } }
+        scales: {
+          y: { min: -100, max: 200 } // 可顯示負值
+        }
       },
       plugins: [{
         id: 'maxRefLine',
@@ -151,7 +151,7 @@
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
-        setInterval(readEMG, 100);
+        setInterval(readEMG, 20); // 每 20ms 更新 → 50Hz
       } catch (error) {
         alert('連接失敗：' + error);
       }
@@ -165,12 +165,12 @@
         const emg = parseInt(text);
 
         if (!isNaN(emg)) {
-          // ✅ 第一圖（絕對原始）
+          // 第一圖：完全原始值
           rawData.push(emg); rawData.shift();
           emgChart.update();
           document.getElementById('value').innerText = '原始數值：' + emg;
 
-          // ✅ 第二圖（校正後 + 模式處理）
+          // 第二圖：處理模式數值
           const processed = getProcessedEMG(emg);
           let adjusted = processed;
 
@@ -180,7 +180,7 @@
               adjusted = 0;
             } else {
               adjusted = processed - baseline;
-              if (adjusted < 0) adjusted = 0;
+              // ✅ 保留負值，不做限制
               if (adjusted > maxAdjusted) {
                 maxAdjusted = adjusted;
                 zoomChart.update();
