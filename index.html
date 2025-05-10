@@ -135,7 +135,10 @@
       alert("請保持放鬆，開始校正...");
       const interval = setInterval(async () => {
         const value = await characteristic.readValue();
-        const emg = parseInt(new TextDecoder().decode(value).trim());
+        const text = new TextDecoder().decode(value);
+        const match = text.match(/\d+/);
+        if (!match) return;
+        const emg = parseInt(match[0]);
         if (!isNaN(emg)) {
           sum += emg;
           count++;
@@ -152,7 +155,10 @@
     async function readEMG() {
       if (!characteristic || isPaused) return;
       const value = await characteristic.readValue();
-      const emg = parseInt(new TextDecoder().decode(value).trim());
+      const text = new TextDecoder().decode(value);
+        const match = text.match(/\d+/);
+        if (!match) return;
+        const emg = parseInt(match[0]);
       if (isNaN(emg)) return;
 
       rawData.push(emg); rawData.shift(); emgChart.update();
@@ -169,22 +175,15 @@
       document.getElementById('value').innerText = '原始數值：' + emg;
       document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
-
-      // 撥放 GitHub 音效：數值在 350~400 之間時觸發（允許重複播放）
       if (amplifiedAdjusted >= 350 && amplifiedAdjusted <= 400) {
-        const gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
-        gitSound.volume = 1.0;
-        gitSound.play();
-      }
-
-      // 撥放 GitHub 音效：數值在 350~400 之間時觸發
-      if (amplifiedAdjusted >= 350 && amplifiedAdjusted <= 400) {
-        if (gitSound.paused) {
-          gitSound.currentTime = 0;
-          gitSound.play();
+        if (!window.gitSound) {
+          window.gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
+          window.gitSound.volume = 1.0;
         }
+        const clone = window.gitSound.cloneNode();
+        clone.play().catch(e => console.warn("音效播放失敗：", e));
       }
-
+    
 
       const threshold = parseInt(document.getElementById('soundThreshold').value);
       if (audioCtx && oscillator && gainNode) {
