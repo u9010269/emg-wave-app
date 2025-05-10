@@ -59,9 +59,6 @@
 
   <script>
     let characteristic, pauseBtn = null;
-    const gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
-    gitSound.volume = 1.0;
-
     let isPaused = false, soundEnabled = true, isCalibrated = false;
     let calibrationBaseline = 0, maxAdjusted = 1;
     let audioCtx = null, oscillator = null, gainNode = null;
@@ -172,6 +169,13 @@
       document.getElementById('value').innerText = '原始數值：' + emg;
       document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
+
+      // 撥放 GitHub 音效：數值在 350~400 之間時觸發（允許重複播放）
+      if (amplifiedAdjusted >= 350 && amplifiedAdjusted <= 400) {
+        const gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
+        gitSound.volume = 1.0;
+        gitSound.play();
+      }
 
       // 撥放 GitHub 音效：數值在 350~400 之間時觸發
       if (amplifiedAdjusted >= 350 && amplifiedAdjusted <= 400) {
