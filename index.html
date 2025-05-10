@@ -4,31 +4,7 @@
 <head>
 <meta charset="utf-8"/>
 <title>EMG 回復穩定版（含音效與UI）</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-let mp3Enabled = false;
-let mp3Played = false;
-let mp3Player = null;
 
-window.addEventListener("DOMContentLoaded", () => {
-  mp3Player = document.getElementById("mp3Player");
-});
-
-function toggleMp3() {
-  mp3Enabled = !mp3Enabled;
-  document.querySelector("button[onclick='toggleMp3()']").innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
-}
-
-
-let mp3Enabled = false;
-let mp3Played = false;
-const mp3Player = document.getElementById("mp3Player");
-
-function toggleMp3() {
-  mp3Enabled = !mp3Enabled;
-  document.querySelector("button[onclick='toggleMp3()']").innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
-}
-
-</script>
 <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
@@ -42,10 +18,10 @@ function toggleMp3() {
     }
   </style>
 </head>
-<body><audio id="mp3Player" preload="auto" src="https://hao-ai-rehab.github.io/emg-audio/throttle.mp3"></audio>
+<body>
 <h2>EMG 原始波形圖（地震圖）</h2>
 <div class="btn-group">
-<button onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
+<button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
 <label>MP3門檻值：<input id="mp3Threshold" style="width: 80px;" type="number" value="350"/></label>
 </div>
 <div class="btn-group">
@@ -203,5 +179,71 @@ function toggleMp3() {
       }
     }
   </script>
+
+<audio id="mp3Player" preload="auto" src="https://hao-ai-rehab.github.io/emg-audio/throttle.mp3"></audio>
+
+<script>
+let mp3Enabled = false;
+let mp3Played = false;
+let mp3Player = null;
+
+function toggleMp3() {
+  mp3Enabled = !mp3Enabled;
+  const btn = document.getElementById("toggleMp3Btn");
+  if (btn) {
+    btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  mp3Player = document.getElementById("mp3Player");
+});
+
+function getProcessedEMG(val) {
+  emgBuffer.push(val); emgBuffer.shift();
+  if (mode === 'raw') return val;
+  if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
+  if (mode === 'max') return Math.max(...emgBuffer);
+  if (mode === 'rms') return Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
+  return val;
+}
+
+async function readEMG() {
+  if (!characteristic || isPaused) return;
+  const value = await characteristic.readValue();
+  const emg = parseInt(new TextDecoder().decode(value).trim());
+  if (isNaN(emg)) return;
+
+  rawData.push(emg); rawData.shift(); emgChart.update();
+
+  let processed = getProcessedEMG(emg);
+  let adjusted = isCalibrated ? Math.max(0, processed - calibrationBaseline) : 0;
+  const amplify = parseFloat(document.getElementById('amplifyRate').value);
+  const amplifiedAdjusted = Math.floor(adjusted * amplify);
+
+  zoomData.push(amplifiedAdjusted); zoomData.shift(); zoomChart.update();
+
+  if (amplifiedAdjusted > maxAdjusted) maxAdjusted = amplifiedAdjusted;
+  const percent = Math.round((amplifiedAdjusted / maxAdjusted) * 100);
+  document.getElementById('value').innerText = '原始數值：' + emg;
+  document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
+  document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
+
+  const mp3Threshold = parseInt(document.getElementById("mp3Threshold").value);
+  if (mp3Enabled && mp3Player) {
+    if (emg > mp3Threshold && !mp3Played) {
+      try {
+        mp3Player.currentTime = 0;
+        mp3Player.play();
+      } catch (err) {
+        console.error("播放失敗：", err);
+      }
+      mp3Played = true;
+    } else if (emg <= mp3Threshold) {
+      mp3Played = false;
+    }
+  }
+}
+</script>
 </body>
 </html>
