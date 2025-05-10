@@ -140,7 +140,7 @@
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
         pauseBtn = document.getElementById('pauseBtn');
-        setInterval(readEMG, 10);
+        setInterval(readEMG, 20);
       } catch (error) { alert('連接失敗：' + error); }
     }
 
