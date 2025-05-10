@@ -17,68 +17,9 @@
     }
   </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js">
-let mp3PlayCount = 0;
-
-
-
-function unlockAudio() {
-  const status = document.getElementById("playStatus");
-  const mp3 = document.getElementById("mp3Player");
-
-  // 先立刻顯示畫面回饋
-  status.innerText = "🔓 嘗試解鎖中...";
-  status.style.color = "#444";
-
-  if (!mp3) {
-    status.innerText = "❌ 找不到 MP3 播放器";
-    status.style.color = "red";
-    return;
-  }
-
-  // 嘗試播放來解鎖
-  try {
-    let playPromise = mp3.play();
-      mp3PlayCount++;
-      document.getElementById("playCount").innerText = "已播放次數：" + mp3PlayCount;
-    if (playPromise !== undefined) {
-      playPromise.then(() => {
-        mp3.pause();
-        mp3.currentTime = 0;
-        status.innerText = "✅ 撥放已解鎖（已觸發過播放）";
-        status.style.color = "green";
-      }).catch((err) => {
-        status.innerText = "❌ 撥放失敗（可能尚未與使用者互動）";
-        status.style.color = "red";
-      });
-    } else {
-      status.innerText = "⚠️ 撥放 promise 無效（環境限制）";
-      status.style.color = "orange";
-    }
-  } catch (err) {
-    status.innerText = "❌ 撥放解鎖時出現錯誤";
-    status.style.color = "red";
-  }
-}
-
-
-  try {
-    mp3.play();
-      mp3PlayCount++;
-      document.getElementById("playCount").innerText = "已播放次數：" + mp3PlayCount;
-    mp3.pause();
-    mp3.currentTime = 0;
-    status.innerText = "✅ 已解鎖 MP3 播放功能（可能無聲測試）";
-    status.style.color = "green";
-  } catch (err) {
-    status.innerText = "❌ 解鎖失敗（瀏覽器限制）";
-    status.style.color = "red";
-  }
-}
-
-
 </script></head>
-<body><button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">🔓 解鎖聲音播放</button>
-<h2>EMG 原始波形圖（地震圖）</h2><p id="playStatus" style="font-weight:bold; color:#0056b3;"></p><p id="playCount" style="font-weight:bold; color:#333;">已播放次數：0</p>
+<body>
+<h2>EMG 原始波形圖（地震圖）</h2>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
 <label>MP3門檻值：<input id="mp3Threshold" style="width: 80px;" type="number" value="350"/></label>
@@ -243,6 +184,7 @@ function unlockAudio() {
 let mp3Enabled = false;
 let mp3Played = false;
 let mp3Player = null;
+let lastEMG = 0;
 
 function toggleMp3() {
   mp3Enabled = !mp3Enabled;
@@ -287,12 +229,15 @@ async function readEMG() {
   document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
   const mp3Threshold = parseInt(document.getElementById("mp3Threshold").value);
-  if (mp3Enabled && mp3Player) {
-    if (emg > mp3Threshold && !mp3Played) {
-      try {
+  
+if (mp3Enabled && mp3Player) {
+    if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
         mp3Player.currentTime = 0;
-        mp3Player.play();
-      } catch (err) {
+        mp3Player.play().catch(err => console.warn("播放錯誤：", err));
+    }
+}
+lastEMG = emg;
+ catch (err) {
         console.error("播放失敗：", err);
       }
       mp3Played = true;
@@ -315,6 +260,7 @@ const zoomData = Array(100).fill(0);
 let mp3Enabled = false;
 let mp3Played = false;
 let mp3Player = null;
+let lastEMG = 0;
 
 window.addEventListener("DOMContentLoaded", () => {
   mp3Player = document.getElementById("mp3Player");
@@ -326,12 +272,15 @@ function toggleMp3() {
   if (btn) {
     btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
   }
-  if (mp3Enabled && mp3Player) {
-    // 僅解鎖音訊，不播放
-    mp3Player.play().then(() => {
-      mp3Player.pause();
-      mp3Player.currentTime = 0;
-    }).catch(e => console.log("音訊初始化被拒絕（等待互動）"));
+  
+if (mp3Enabled && mp3Player) {
+    if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(err => console.warn("播放錯誤：", err));
+    }
+}
+lastEMG = emg;
+).catch(e => console.log("音訊初始化被拒絕（等待互動）"));
   }
 }
 
@@ -428,12 +377,15 @@ async function readEMG() {
   document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
   const mp3Threshold = parseInt(document.getElementById("mp3Threshold").value);
-  if (mp3Enabled && mp3Player) {
-    if (emg > mp3Threshold && !mp3Played) {
-      mp3Player.currentTime = 0;
-      mp3Player.play();
-      mp3Played = true;
-    } else if (emg <= mp3Threshold) {
+  
+if (mp3Enabled && mp3Player) {
+    if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(err => console.warn("播放錯誤：", err));
+    }
+}
+lastEMG = emg;
+ else if (emg <= mp3Threshold) {
       mp3Played = false;
     }
   }
@@ -452,6 +404,7 @@ const zoomData = Array(100).fill(0);
 let mp3Enabled = false;
 let mp3Played = false;
 let mp3Player = null;
+let lastEMG = 0;
 
 window.addEventListener("DOMContentLoaded", () => {
   mp3Player = document.getElementById("mp3Player");
@@ -463,10 +416,15 @@ function toggleMp3() {
   if (btn) {
     btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
   }
-  if (mp3Enabled && mp3Player) {
-    mp3Player.currentTime = 0;
-    mp3Player.play().catch(err => console.warn("音效播放解鎖失敗：", err));
-  }
+  
+if (mp3Enabled && mp3Player) {
+    if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(err => console.warn("播放錯誤：", err));
+    }
+}
+lastEMG = emg;
+
 }
 
 const emgChart = new Chart(document.getElementById('emgChart'), {
@@ -562,12 +520,15 @@ async function readEMG() {
   document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
   const mp3Threshold = parseInt(document.getElementById("mp3Threshold").value);
-  if (mp3Enabled && mp3Player) {
-    if (emg > mp3Threshold && !mp3Played) {
-      mp3Player.currentTime = 0;
-      mp3Player.play();
-      mp3Played = true;
-    } else if (emg <= mp3Threshold) {
+  
+if (mp3Enabled && mp3Player) {
+    if (lastEMG <= mp3Threshold && emg > mp3Threshold) {
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(err => console.warn("播放錯誤：", err));
+    }
+}
+lastEMG = emg;
+ else if (emg <= mp3Threshold) {
       mp3Played = false;
     }
   }
