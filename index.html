@@ -3,7 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <title>EMG 雙圖顯示完整功能版</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js">
+    let manualCalibrationValue = 0;
+    function triggerManualCalibration() {
+      const lastAdjusted = zoomData[zoomData.length - 1] || 0;
+      manualCalibrationValue = lastAdjusted;
+      alert("已記錄校正起點值：" + manualCalibrationValue);
+    }
+
+</script>
   <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
@@ -40,6 +48,7 @@
   <canvas id="emgChart" style="width: 100%; max-width: 1400px;"></canvas>
 
   <h2 id="zoomTitle">EMG 校正波形圖（處理模式）
+    <button onclick="triggerManualCalibration()" style="background-color:#ff9800; color:white; font-size:0.9em; margin-left: 10px;">📌 記錄並重設倍率起點</button>
     <button onclick="calibrateBaseline()" style="background-color:#ffc107; color:black; font-size: 0.8em; margin-left: 10px;">🧘 基線校正</button>
   </h2>
   <canvas id="zoomChart" style="width: 100%; max-width: 1400px;"></canvas>
@@ -185,7 +194,7 @@
           }
 
           const amplify = parseFloat(document.getElementById('amplifyRate').value) || 1;
-          const amplifiedAdjusted = Math.floor(adjusted * amplify);
+          const amplifiedAdjusted = Math.floor((adjusted - manualCalibrationValue) * amplify);
           const percent = Math.min(100, Math.round((amplifiedAdjusted / maxAdjusted) * 100));
 
           zoomData.push(amplifiedAdjusted); zoomData.shift(); zoomChart.update();
@@ -237,6 +246,14 @@
       alert('最大值已重設');
       zoomChart.update();
     }
-  </script>
+  
+    let manualCalibrationValue = 0;
+    function triggerManualCalibration() {
+      const lastAdjusted = zoomData[zoomData.length - 1] || 0;
+      manualCalibrationValue = lastAdjusted;
+      alert("已記錄校正起點值：" + manualCalibrationValue);
+    }
+
+</script>
 </body>
 </html>
