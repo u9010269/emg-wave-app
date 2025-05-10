@@ -151,7 +151,7 @@
         const server = await device.gatt.connect();
         const service = await server.getPrimaryService('ffe0');
         characteristic = await service.getCharacteristic('ffe1');
-        setInterval(readEMG, 20); // 每 20ms 更新 → 50Hz
+        setInterval(readEMG, 10); // 每 20ms 更新 → 50Hz
       } catch (error) {
         alert('連接失敗：' + error);
       }
