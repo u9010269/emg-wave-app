@@ -52,13 +52,22 @@ function playMP3() {
 </div>
 <p id="value">原始數值：--</p>
 <canvas id="emgChart"></canvas>
-
-
-
-
+<h2 id="zoomTitle">EMG 校正波形圖（處理模式）
+    <button onclick="performCalibration()" style="background-color:#ffc107; color:black; font-size: 0.9em; margin-left: 10px;">📍 校正</button>
+</h2>
+<canvas id="zoomChart"></canvas>
+<p id="adjusted">校正後數值：--</p>
+<p id="mvc">即時強度：-- %</p>
 <div class="btn-group">
 <label>校正數值倍率：
-      
+      <select id="amplifyRate">
+<option value="1">100%</option>
+<option value="1.2">120%</option>
+<option value="1.4">140%</option>
+<option value="1.6">160%</option>
+<option value="1.8">180%</option>
+<option value="2">200%</option>
+</select>
 </label>
 </div>
 <div class="btn-group">
