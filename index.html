@@ -114,7 +114,15 @@
     }
 
     function startSoundEngine() {
-      console.log("音效引擎初始化完成（GitHub MP3 模式）");
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+        gainNode = audioCtx.createGain();
+        gainNode.connect(audioCtx.destination);
+        oscillator = audioCtx.createOscillator();
+        oscillator.connect(gainNode);
+        oscillator.start();
+        gainNode.gain.value = 0;
+      }
     }
 
     function toggleSound() {
@@ -163,10 +171,13 @@
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
       const threshold = parseInt(document.getElementById('soundThreshold').value);
-      if (soundEnabled && emg > threshold) {
-        const gitSound = new Audio("https://raw.githubusercontent.com/u9010269/emg-wave-app/main/350.mp3");
-        gitSound.volume = 1.0;
-        gitSound.play().catch(e => console.warn("音效播放失敗：", e));
+      if (audioCtx && oscillator && gainNode) {
+        if (soundEnabled && emg > threshold) {
+          oscillator.frequency.setValueAtTime(100 + (emg - threshold) * 2, audioCtx.currentTime);
+          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        } else {
+          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+        }
       }
     }
   </script>
