@@ -59,9 +59,9 @@
 
   <script>
     let characteristic, pauseBtn = null;
-    let isPaused = false, soundEnabled = true, isCalibrated = false;
+    
     let calibrationBaseline = 0, maxAdjusted = 1;
-    let audioCtx = null, oscillator = null, gainNode = null;
+    
     let mode = 'raw';
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
@@ -125,10 +125,7 @@
       }
     }
 
-    function toggleSound() {
-      soundEnabled = !soundEnabled;
-      document.querySelector("button[onclick='toggleSound()']").innerText = "切換音效（目前：" + (soundEnabled ? "開" : "關") + "）";
-    }
+    
 
     async function performCalibration() {
       let sum = 0, count = 0;
@@ -171,11 +168,7 @@
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
       const threshold = parseInt(document.getElementById('soundThreshold').value);
-      if (audioCtx && oscillator && gainNode) {
-        if (soundEnabled && emg > threshold) {
-          oscillator.frequency.setValueAtTime(100 + (emg - threshold) * 2, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        } else {
+       else {
           gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
         }
       }
