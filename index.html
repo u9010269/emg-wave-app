@@ -22,6 +22,9 @@ let mp3PlayCount = 0;
 function unlockAudio() {
   const mp3 = document.getElementById("mp3Player");
   mp3.play().then(() => {
+      mp3Played = true;
+      mp3PlayCount++;
+      document.getElementById("playCount").innerText = "已播放次數：" + mp3PlayCount;
     mp3.pause();
     mp3.currentTime = 0;
     document.getElementById("playStatus").innerText = "✅ 已解鎖 MP3 播放功能";
@@ -33,7 +36,7 @@ function unlockAudio() {
 }
 
 </script></head>
-<body>
+<body><button onclick="unlockAudio()" style="background-color:#6c757d; color:white; margin-bottom:10px;">🔓 解鎖聲音播放</button>
 <h2>EMG 原始波形圖（地震圖）</h2><p id="playStatus" style="font-weight:bold; color:#0056b3;"></p><p id="playCount" style="font-weight:bold; color:#333;">已播放次數：0</p>
 <div class="btn-group">
 <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
