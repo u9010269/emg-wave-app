@@ -92,14 +92,7 @@ let smoothedValue = 0;
     let bufferGroup = [];
     let lastDisplayTime = Date.now();
 
-    
-function setMode(newMode) {
-  mode = newMode;
-  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active-mode'));
-  const target = document.getElementById('mode-' + newMode);
-  if (target) target.classList.add('active-mode');
-}
-window.addEventListener("DOMContentLoaded", () => {
+    window.addEventListener("DOMContentLoaded", () => {
       mp3Player = document.getElementById("mp3Player");
     });
 
@@ -225,7 +218,16 @@ function getProcessedEMG(val) {
       }, 100);
     }
 
-    async function readEMGLoop() {
+    
+function setMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active-mode'));
+  const target = document.getElementById('mode-' + newMode);
+  if (target) target.classList.add('active-mode');
+}
+
+
+async function readEMGLoop() {
       while (true) {
         await readEMG();
         await new Promise(r => setTimeout(r, 30));
@@ -262,9 +264,7 @@ function getProcessedEMG(val) {
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 zoomChart.data.datasets[0].data = dynamicData;
 zoomChart.data.datasets[1].data = zoomData; 
-zoomChart.data.datasets[2].data = Array(100).fill(calibrationBaseline);
 zoomChart.data.datasets[2].data = baselineData;
-
 zoomChart.update('none');
 
         emgChart.update('none');
@@ -283,8 +283,11 @@ zoomChart.update('none');
           smoothedValue = alpha * avgEMG + (1 - alpha) * smoothedValue;
           dynamicVal = Math.floor(smoothedValue);
         }
-        
-                
+        dynamicData.push(dynamicVal); dynamicData.shift();
+        zoomChart.data.datasets[0].data = dynamicData;
+        zoomChart.data.datasets[1].data = zoomData;
+        zoomChart.data.datasets[2].data = baselineData;
+        zoomChart.update('none');
               }
 
       const threshold = parseInt(document.getElementById("mp3Threshold").value);
