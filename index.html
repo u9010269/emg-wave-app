@@ -209,6 +209,7 @@
 
       if (now - lastDisplayTime >= displayInterval) {
         const avgEMG = Math.floor(bufferGroup.reduce((a, b) => a + b, 0) / bufferGroup.length);
+        emgBuffer.push(avgEMG); emgBuffer.shift();
         bufferGroup = [];
         lastDisplayTime = now;
 
