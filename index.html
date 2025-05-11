@@ -263,8 +263,9 @@ async function readEMGLoop() {
         document.getElementById('adjusted').innerText = '校正後數值：' + amplified;
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 zoomChart.data.datasets[0].data = dynamicData;
-zoomChart.data.datasets[1].data = zoomData; 
-zoomChart.data.datasets[2].data = baselineData;
+zoomChart.data.datasets[1].data = zoomData;
+zoomChart.data.datasets[2].data = Array(100).fill(calibrationBaseline); 
+
 zoomChart.update('none');
 
         emgChart.update('none');
@@ -286,7 +287,8 @@ zoomChart.update('none');
         dynamicData.push(dynamicVal); dynamicData.shift();
         zoomChart.data.datasets[0].data = dynamicData;
         zoomChart.data.datasets[1].data = zoomData;
-        zoomChart.data.datasets[2].data = baselineData;
+zoomChart.data.datasets[2].data = Array(100).fill(calibrationBaseline);
+        
         zoomChart.update('none');
               }
 
