@@ -92,7 +92,14 @@ let smoothedValue = 0;
     let bufferGroup = [];
     let lastDisplayTime = Date.now();
 
-    window.addEventListener("DOMContentLoaded", () => {
+    
+function setMode(newMode) {
+  mode = newMode;
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active-mode'));
+  const target = document.getElementById('mode-' + newMode);
+  if (target) target.classList.add('active-mode');
+}
+window.addEventListener("DOMContentLoaded", () => {
       mp3Player = document.getElementById("mp3Player");
     });
 
@@ -255,8 +262,9 @@ function getProcessedEMG(val) {
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 zoomChart.data.datasets[0].data = dynamicData;
 zoomChart.data.datasets[1].data = zoomData; 
-baselineData.fill(calibrationBaseline);
+zoomChart.data.datasets[2].data = Array(100).fill(calibrationBaseline);
 zoomChart.data.datasets[2].data = baselineData;
+
 zoomChart.update('none');
 
         emgChart.update('none');
@@ -275,7 +283,7 @@ zoomChart.update('none');
           smoothedValue = alpha * avgEMG + (1 - alpha) * smoothedValue;
           dynamicVal = Math.floor(smoothedValue);
         }
-        dynamicData.push(dynamicVal); dynamicData.shift();
+        
                 
               }
 
