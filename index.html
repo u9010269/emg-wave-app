@@ -256,6 +256,7 @@ function getProcessedEMG(val) {
         emgChart.update('none');
         
         
+        
         let dynamicVal = 0;
         if (mode === 'raw') {
           dynamicVal = amplified;
@@ -269,10 +270,8 @@ function getProcessedEMG(val) {
           dynamicVal = Math.floor(smoothedValue);
         }
         dynamicData.push(dynamicVal); dynamicData.shift();
-        zoomChart.data.datasets[0].data = dynamicData;
-
-        zoomChart.update('none');
-      }
+                
+              }
 
       const threshold = parseInt(document.getElementById("mp3Threshold").value);
       if (mp3Enabled && mp3Player) {
