@@ -220,6 +220,11 @@
         zoomData.push(amplified); zoomData.shift();
 
         
+
+        rawData.push(avgEMG); rawData.shift();
+    
+
+        
         // 橘線邏輯：根據模式切換
         let dynamicVal = 0;
         if (mode === 'mean') {
@@ -239,11 +244,7 @@
         if (mode === 'raw') dynamicVal = 0;
         dynamicData.push(dynamicVal); dynamicData.shift();
 
-
-        rawData.push(avgEMG); rawData.shift();
-    
-
-        emgChart.update('none');
+emgChart.update('none');
         zoomChart.update('none');
 
         if (amplified > maxAdjusted) maxAdjusted = amplified;
