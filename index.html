@@ -215,8 +215,7 @@
 
         
         // 綠線邏輯：固定用 RMS
-        const rmsProcessed = Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
-        const adjusted = isCalibrated ? Math.max(0, rmsProcessed - calibrationBaseline) : 0;
+        const adjusted = isCalibrated ? Math.max(0, avgEMG - calibrationBaseline) : 0;
         const amplified = Math.floor(adjusted * parseFloat(document.getElementById('amplifyRate').value));
         zoomData.push(amplified); zoomData.shift();
 
