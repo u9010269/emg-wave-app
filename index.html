@@ -21,7 +21,13 @@
       align-items: center;
       gap: 10px;
     }
-  </style>
+  
+.active-mode {
+  background-color: #dc3545 !important;
+  color: white !important;
+}
+
+</style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -40,6 +46,14 @@
   <h2 id="zoomTitle">EMG 校正波形圖（處理模式）
     <button onclick="performCalibration()" style="background-color:#ffc107; color:black; font-size: 0.9em; margin-left: 10px;">📍 校正</button>
   </h2>
+  
+<!-- 原本的位置下方加上這組按鈕 -->
+<div class="btn-group inline-group">
+  <button id="mode-mean" class="mode-btn active-mode" onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均值</button>
+  <button id="mode-rms" class="mode-btn" onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
+  <button id="mode-smooth" class="mode-btn" onclick="setMode('smooth')" style="background-color:#17a2b8; color:white;">滑動平均</button>
+</div>
+
   <canvas id="zoomChart"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
@@ -67,9 +81,11 @@
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
+const dynamicData = Array(100).fill(0);
     let mp3Enabled = false;
     let mp3Played = false;
     let mp3Player = null;
+let smoothedValue = 0;
 
     let bufferGroup = [];
     let lastDisplayTime = Date.now();
@@ -117,6 +133,13 @@
         labels: Array(100).fill(''),
         datasets: [
           {
+            label: '顯示模式線',
+            data: Array(100).fill(0),
+            borderColor: 'orange',
+            borderWidth: 1,
+            pointRadius: 0
+          },
+          {
             label: '校正後 EMG',
             data: zoomData,
             borderColor: 'green',
@@ -143,14 +166,20 @@
       }
     });
 
-    function getProcessedEMG(val) {
-      emgBuffer.push(val); emgBuffer.shift();
-      if (mode === 'raw') return val;
-      if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
-      if (mode === 'max') return Math.max(...emgBuffer);
-      if (mode === 'rms') return Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
-      return val;
-    }
+    
+function getProcessedEMG(val) {
+  emgBuffer.push(val); emgBuffer.shift();
+  if (mode === 'raw') return val;
+  if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
+  if (mode === 'rms') return Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
+  if (mode === 'smooth') {
+    const alpha = 0.2;
+    smoothedValue = alpha * val + (1 - alpha) * smoothedValue;
+    return Math.floor(smoothedValue);
+  }
+  return val;
+}
+
 
     function updateChartData(chart, dataArray, newVal) {
       dataArray.push(newVal);
@@ -225,6 +254,20 @@
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
         emgChart.update('none');
+        
+        let dynamicVal = 0;
+        if (mode === 'mean') {
+          dynamicVal = Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
+        } else if (mode === 'rms') {
+          dynamicVal = Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
+        } else if (mode === 'smooth') {
+          const alpha = 0.2;
+          smoothedValue = alpha * avgEMG + (1 - alpha) * smoothedValue;
+          dynamicVal = Math.floor(smoothedValue);
+        }
+        dynamicData.push(dynamicVal); dynamicData.shift();
+        zoomChart.data.datasets[0].data = dynamicData;
+
         zoomChart.update('none');
       }
 
