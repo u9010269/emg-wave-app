@@ -81,6 +81,7 @@
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     const rawData = Array(100).fill(0);
+const baselineData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
 const dynamicData = Array(100).fill(0);
     let mp3Enabled = false;
@@ -135,7 +136,7 @@ let smoothedValue = 0;
         datasets: [
           {
             label: '顯示模式線',
-            data: Array(100).fill(0),
+            data: dynamicData,
             borderColor: 'orange',
             borderWidth: 1,
             pointRadius: 0
@@ -149,7 +150,7 @@ let smoothedValue = 0;
           },
           {
             label: '基準線',
-            data: Array(100).fill(0),
+            data: baselineData,
             borderColor: 'red',
             borderWidth: 1,
             pointRadius: 0
@@ -252,6 +253,10 @@ function getProcessedEMG(val) {
         document.getElementById('value').innerText = '原始數值：' + avgEMG;
         document.getElementById('adjusted').innerText = '校正後數值：' + amplified;
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
+zoomChart.data.datasets[0].data = dynamicData;
+baselineData.fill(calibrationBaseline);
+zoomChart.data.datasets[2].data = baselineData;
+zoomChart.update('none');
 
         emgChart.update('none');
         
