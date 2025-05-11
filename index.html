@@ -49,7 +49,8 @@
   
 <!-- 原本的位置下方加上這組按鈕 -->
 <div class="btn-group inline-group">
-  <button id="mode-mean" class="mode-btn active-mode" onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均值</button>
+  <button id="mode-raw" class="mode-btn" onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始值</button>
+<button id="mode-mean" class="mode-btn active-mode" onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均值</button>
   <button id="mode-rms" class="mode-btn" onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
   <button id="mode-smooth" class="mode-btn" onclick="setMode('smooth')" style="background-color:#17a2b8; color:white;">滑動平均</button>
 </div>
@@ -76,7 +77,7 @@
     let isCalibrated = false;
     let calibrationBaseline = 0;
     let maxAdjusted = 1;
-    let mode = 'raw';
+    let mode = 'mean';
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     const rawData = Array(100).fill(0);
@@ -254,8 +255,11 @@ function getProcessedEMG(val) {
 
         emgChart.update('none');
         
+        
         let dynamicVal = 0;
-        if (mode === 'mean') {
+        if (mode === 'raw') {
+          dynamicVal = amplified;
+        } else if (mode === 'mean') {
           dynamicVal = Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
         } else if (mode === 'rms') {
           dynamicVal = Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
@@ -265,7 +269,7 @@ function getProcessedEMG(val) {
           dynamicVal = Math.floor(smoothedValue);
         }
         dynamicData.push(dynamicVal); dynamicData.shift();
-        zoomChart.data.datasets[2].data = dynamicData;
+        zoomChart.data.datasets[0].data = dynamicData;
 
         zoomChart.update('none');
       }
