@@ -212,16 +212,31 @@
         bufferGroup = [];
         lastDisplayTime = now;
 
-        const processed = getProcessed(avgEMG);
-        const adjusted = isCalibrated ? Math.max(0, processed - calibrationBaseline) : 0;
+        
+        // 綠線邏輯：固定用 RMS
+        const rmsProcessed = Math.floor(Math.sqrt(emgBuffer.reduce((a, b) => a + b * b, 0) / AVG_WINDOW));
+        const adjusted = isCalibrated ? Math.max(0, rmsProcessed - calibrationBaseline) : 0;
         const amplified = Math.floor(adjusted * parseFloat(document.getElementById('amplifyRate').value));
-
-        rawData.push(avgEMG); rawData.shift();
         zoomData.push(amplified); zoomData.shift();
 
+        // 橘線邏輯：根據模式切換
         let dynamicVal = 0;
-        if (mode !== 'raw') dynamicVal = amplified;
+        if (mode === 'mean') {
+          dynamicVal = Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
+        } else if (mode === 'rms') {
+          dynamicVal = rmsProcessed;
+        } else if (mode === 'smooth') {
+          const alpha = 0.2;
+          smoothedValue = alpha * avgEMG + (1 - alpha) * smoothedValue;
+          dynamicVal = Math.floor(smoothedValue);
+        }
+        dynamicVal = Math.max(0, dynamicVal - calibrationBaseline);
+        dynamicVal = Math.floor(dynamicVal * parseFloat(document.getElementById('amplifyRate').value));
+        if (mode === 'raw') dynamicVal = 0;
         dynamicData.push(dynamicVal); dynamicData.shift();
+
+        rawData.push(avgEMG); rawData.shift();
+    
 
         emgChart.update('none');
         zoomChart.update('none');
