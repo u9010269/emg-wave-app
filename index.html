@@ -1,10 +1,10 @@
-<!DOCTYPE html>
 
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="utf-8"/>
-<title>EMG 回復穩定版（含音效與UI）</title>
-<style>
+  <meta charset="utf-8" />
+  <title>EMG 回復穩定版（無格線＋校正紅線）</title>
+  <style>
     body { font-family: sans-serif; padding: 20px; }
     canvas { max-width: 100%; height: 250px; }
     .btn-group { margin-top: 10px; margin-bottom: 10px; }
@@ -16,67 +16,131 @@
       font-size: 1em; margin-left: 10px;
     }
   </style>
-<script src="https://cdn.jsdelivr.net/npm/chart.js">
-</script></head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
 <body>
-<div class="btn-group"><label>MP3門檻值：<input id="mp3Threshold" style="width: 80px;" type="number" value="350"/></label></div><h2>EMG 原始波形圖（地震圖）</h2>
-
-<div class="btn-group">
-<button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
-<button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
-</div>
-<p id="value">原始數值：--</p>
-<canvas id="emgChart"></canvas>
-<h2 id="zoomTitle">EMG 校正波形圖（處理模式）
+  <h2>EMG 原始波形圖（地震圖）</h2>
+  <div class="btn-group">
+    <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
+    <label>MP3門檻值：<input id="mp3Threshold" type="number" value="350" style="width: 80px;" /></label>
+  </div>
+  <div class="btn-group">
+    <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
+    <button id="pauseBtn" onclick="togglePause()" style="background-color:#007BFF; color:white;">暫停</button>
+  </div>
+  <p id="value">原始數值：--</p>
+  <canvas id="emgChart"></canvas>
+  <h2 id="zoomTitle">EMG 校正波形圖（處理模式）
     <button onclick="performCalibration()" style="background-color:#ffc107; color:black; font-size: 0.9em; margin-left: 10px;">📍 校正</button>
-</h2>
-<canvas id="zoomChart"></canvas>
-<p id="adjusted">校正後數值：--</p>
-<p id="mvc">即時強度：-- %</p>
-<div class="btn-group">
-<label>校正數值倍率：
+  </h2>
+  <canvas id="zoomChart"></canvas>
+  <p id="adjusted">校正後數值：--</p>
+  <p id="mvc">即時強度：-- %</p>
+
+  <div class="btn-group">
+    <label>校正數值倍率：
       <select id="amplifyRate">
-<option value="1">100%</option>
-<option value="1.2">120%</option>
-<option value="1.4">140%</option>
-<option value="1.6">160%</option>
-<option value="1.8">180%</option>
-<option value="2">200%</option>
-</select>
-</label>
-</div>
-<div class="btn-group">
-<button onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始</button>
-<button onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均</button>
-<button onclick="setMode('max')" style="background-color:#17a2b8; color:white;">最大值</button>
-<button onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
-<button onclick="resetMax()" style="background-color:#6c757d; color:white;">重設最大值</button>
-</div>
-<script>
-    let characteristic, pauseBtn = null;
-    let isPaused = false, soundEnabled = true, isCalibrated = false;
-    let calibrationBaseline = 0, maxAdjusted = 1;
-    let audioCtx = null, oscillator = null, gainNode = null;
+        <option value="1">100%</option>
+        <option value="1.2">120%</option>
+        <option value="1.4">140%</option>
+        <option value="1.6">160%</option>
+        <option value="1.8">180%</option>
+        <option value="2">200%</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="btn-group">
+    <button onclick="setMode('raw')" style="background-color:#17a2b8; color:white;">原始</button>
+    <button onclick="setMode('mean')" style="background-color:#17a2b8; color:white;">平均</button>
+    <button onclick="setMode('max')" style="background-color:#17a2b8; color:white;">最大值</button>
+    <button onclick="setMode('rms')" style="background-color:#17a2b8; color:white;">RMS</button>
+    <button onclick="resetMax()" style="background-color:#6c757d; color:white;">重設最大值</button>
+  </div>
+
+  <audio id="mp3Player" preload="auto" src="https://u9010269.github.io/emg-wave-app/350.mp3"></audio>
+
+  <script>
+    let characteristic = null;
+    let isPaused = false;
+    let isCalibrated = false;
+    let calibrationBaseline = 0;
+    let maxAdjusted = 1;
     let mode = 'raw';
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     const rawData = Array(100).fill(0);
     const zoomData = Array(100).fill(0);
+    let mp3Enabled = false;
+    let mp3Played = false;
+    let mp3Player = null;
+    let redLine = null;
+
+    window.addEventListener("DOMContentLoaded", () => {
+      mp3Player = document.getElementById("mp3Player");
+    });
+
+    function toggleMp3() {
+      mp3Enabled = !mp3Enabled;
+      const btn = document.getElementById("toggleMp3Btn");
+      if (btn) {
+        btn.innerText = "切換MP3音效（目前：" + (mp3Enabled ? "開" : "關") + "）";
+      }
+      if (mp3Enabled && mp3Player) {
+        mp3Player.play().then(() => {
+          mp3Player.pause();
+          mp3Player.currentTime = 0;
+        }).catch(e => console.warn("音訊初始化需互動"));
+      }
+    }
 
     const emgChart = new Chart(document.getElementById('emgChart'), {
       type: 'line',
-      data: { labels: Array(100).fill(''), datasets: [{ label: '原始 EMG', data: rawData, borderColor: 'blue', borderWidth: 1 }] },
-      options: { animation: false, responsive: true, scales: { y: { suggestedMin: 0, suggestedMax: 1023 } } }
+      data: {
+        labels: Array(100).fill(''),
+        datasets: [{
+          label: '原始 EMG',
+          data: rawData,
+          borderColor: 'blue',
+          borderWidth: 1,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        scales: {
+          x: { grid: { display: false } },
+          y: { suggestedMin: 0, suggestedMax: 1023 }
+        }
+      }
     });
 
     const zoomChart = new Chart(document.getElementById('zoomChart'), {
       type: 'line',
-      data: { labels: Array(100).fill(''), datasets: [{ label: '校正後 EMG', data: zoomData, borderColor: 'green', borderWidth: 1 }] },
-      options: { animation: false, responsive: true, scales: { y: { min: -100, max: 200 }, x: { grid: { display: true } } } }
+      data: {
+        labels: Array(100).fill(''),
+        datasets: [{
+          label: '校正後 EMG',
+          data: zoomData,
+          borderColor: 'green',
+          borderWidth: 1,
+          pointRadius: 0
+        }]
+      },
+      options: {
+        animation: false,
+        responsive: true,
+        scales: {
+          x: { grid: { display: false } },
+          y: { min: -100, max: 200 }
+        }
+      }
     });
 
     function getProcessedEMG(val) {
-      emgBuffer.push(val); emgBuffer.shift();
+      emgBuffer.push(val);
+      emgBuffer.shift();
       if (mode === 'raw') return val;
       if (mode === 'mean') return Math.floor(emgBuffer.reduce((a, b) => a + b, 0) / AVG_WINDOW);
       if (mode === 'max') return Math.max(...emgBuffer);
@@ -99,30 +163,12 @@
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService('ffe0');
       characteristic = await service.getCharacteristic('ffe1');
-      pauseBtn = document.getElementById('pauseBtn');
-      setInterval(readEMG, 30);
+      readEMGLoop();
     }
 
     function togglePause() {
       isPaused = !isPaused;
-      pauseBtn.innerText = isPaused ? "恢復" : "暫停";
-    }
-
-    function startSoundEngine() {
-      if (!audioCtx) {
-        audioCtx = new AudioContext();
-        gainNode = audioCtx.createGain();
-        gainNode.connect(audioCtx.destination);
-        oscillator = audioCtx.createOscillator();
-        oscillator.connect(gainNode);
-        oscillator.start();
-        gainNode.gain.value = 0;
-      }
-    }
-
-    function toggleSound() {
-      soundEnabled = !soundEnabled;
-      document.querySelector("button[onclick='toggleSound()']").innerText = "切換音效（目前：" + (soundEnabled ? "開" : "關") + "）";
+      document.getElementById("pauseBtn").innerText = isPaused ? "恢復" : "暫停";
     }
 
     async function performCalibration() {
@@ -139,16 +185,32 @@
             isCalibrated = true;
             clearInterval(interval);
             alert("校正完成，基準值：" + calibrationBaseline);
+            zoomChart.data.datasets.push({
+              label: '校正基準',
+              data: Array(100).fill(calibrationBaseline),
+              borderColor: 'red',
+              borderWidth: 1,
+              borderDash: [5, 5],
+              pointRadius: 0
+            });
+            zoomChart.update();
           }
         }
       }, 100);
+    }
+
+    async function readEMGLoop() {
+      while (true) {
+        await readEMG();
+        await new Promise(r => setTimeout(r, 30));
+      }
     }
 
     async function readEMG() {
       if (!characteristic || isPaused) return;
       const value = await characteristic.readValue();
       const emg = parseInt(new TextDecoder().decode(value).trim());
-      if (isNaN(emg)) return;
+      if (isNaN(emg) || emg <= 100 || emg >= 1024) return;
 
       rawData.push(emg); rawData.shift(); emgChart.update();
 
@@ -165,61 +227,17 @@
       document.getElementById('adjusted').innerText = '校正後數值：' + amplifiedAdjusted;
       document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
-      const threshold = parseInt(document.getElementById('soundThreshold').value);
-      if (audioCtx && oscillator && gainNode) {
-        if (soundEnabled && emg > threshold) {
-          oscillator.frequency.setValueAtTime(100 + (emg - threshold) * 2, audioCtx.currentTime);
-          gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
-        } else {
-          gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      const threshold = parseInt(document.getElementById("mp3Threshold").value);
+      if (mp3Enabled && mp3Player) {
+        if (emg > threshold && !mp3Played) {
+          mp3Player.currentTime = 0;
+          mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
+          mp3Played = true;
+        } else if (emg <= threshold) {
+          mp3Played = false;
         }
       }
     }
   </script>
-
-
-
-
-<script>
-let audioCtx = null;
-let gainNode = null;
-let oscillator = null;
-
-// 自動啟用 Web Audio（首次互動後觸發）
-document.addEventListener("click", () => {
-  if (!audioCtx) {
-    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    gainNode = audioCtx.createGain();
-    oscillator = audioCtx.createOscillator();
-    oscillator.type = 'sawtooth';
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    oscillator.start();
-    gainNode.gain.value = 0;
-  }
-}, { once: true });
-
-// 定時比對原始數值，觸發聲音（不影響任何 readEMG 結構）
-setInterval(() => {
-  if (!audioCtx || !gainNode || !oscillator) return;
-
-  const valEl = document.getElementById("value");
-  const thresholdEl = document.getElementById("mp3Threshold");
-  if (!valEl || !thresholdEl) return;
-
-  const rawText = valEl.innerText;
-  const match = rawText.match(/原始數值：([0-9]+)/);
-  if (!match) return;
-
-  const emg = parseInt(match[1]);
-  const threshold = parseInt(thresholdEl.value);
-
-  if (emg > threshold) {
-    oscillator.frequency.setValueAtTime(150 + (emg - threshold), audioCtx.currentTime);
-    gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-  } else {
-    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-  }
-}, 30);
-</script></body>
+</body>
 </html>
