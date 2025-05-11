@@ -35,7 +35,7 @@
   <div class="btn-group inline-group">
     <button id="toggleMp3Btn" onclick="toggleMp3()" style="background-color:#ff6600; color:white;">切換MP3音效（目前：關）</button>
     <label>MP3門檻值：<input id="mp3Threshold" type="number" value="350" style="width: 80px;" /></label>
-    <label>每秒畫面更新次數：<input type="number" id="displayRate" value="5" min="1" max="33" style="width: 60px;" /></label>
+    <label>每秒畫面更新次數：<input type="number" id="displayRate" value="20" min="1" max="33" style="width: 60px;" /></label>
   </div>
   <div class="btn-group">
     <button onclick="connect()" style="background-color:#28a745; color:white;">連接藍牙</button>
@@ -81,7 +81,7 @@
     const AVG_WINDOW = 10;
     let emgBuffer = Array(AVG_WINDOW).fill(0);
     const rawData = Array(100).fill(0);
-const baselineData = Array(100).fill(0);
+const baselineData = Array(100).fill(0);  // 固定畫 y=0 紅線
     const zoomData = Array(100).fill(0);
 const dynamicData = Array(100).fill(0);
     let mp3Enabled = false;
@@ -262,10 +262,7 @@ async function readEMGLoop() {
         document.getElementById('value').innerText = '原始數值：' + avgEMG;
         document.getElementById('adjusted').innerText = '校正後數值：' + amplified;
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
-zoomChart.data.datasets[0].data = dynamicData;
-zoomChart.data.datasets[1].data = zoomData; 
-zoomChart.data.datasets[2].data = baselineData;
-zoomChart.update('none');
+
 
         emgChart.update('none');
         
