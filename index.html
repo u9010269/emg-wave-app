@@ -254,6 +254,7 @@ function getProcessedEMG(val) {
         document.getElementById('adjusted').innerText = '校正後數值：' + amplified;
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 zoomChart.data.datasets[0].data = dynamicData;
+zoomChart.data.datasets[1].data = zoomData; 
 baselineData.fill(calibrationBaseline);
 zoomChart.data.datasets[2].data = baselineData;
 zoomChart.update('none');
