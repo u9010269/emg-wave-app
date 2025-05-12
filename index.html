@@ -52,7 +52,6 @@
   <canvas id="zoomChart"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
-<p id="debug" style="color:gray; font-size: 0.9em;">Debug: --</p>
   <div class="btn-group">
     <label>校正數值倍率：
       <select id="amplifyRate">
@@ -62,7 +61,7 @@
       </select>
     </label>
   </div>
-  <audio id="mp3Player" preload="auto" src="https://u9010269.github.io/emg-wave-app/350.mp3"></audio>
+  
   <script>
     let characteristic = null;
     let isPaused = false;
@@ -77,57 +76,54 @@
     const zoomData = Array(100).fill(0);      // 綠線 (校正後)
     const dynamicData = Array(100).fill(0);   // 橘線 (根據模式)
     let smoothedValue = 0;
-let latestEMGForSound = 0;
-let lastSoundTime = 0;
-const soundCooldown = 800;
     let bufferGroup = [];
     let lastDisplayTime = Date.now();
     let mp3Enabled = false;
     let mp3Played = false;
     let mp3Player = null;
 
+let audioCtx = null;
+let audioBuffer = null;
+let lastSoundTime = 0;
+const soundCooldown = 800;
+
+async function loadAudioBuffer(url) {
+  const response = await fetch(url);
+  const arrayBuffer = await response.arrayBuffer();
+  return await audioCtx.decodeAudioData(arrayBuffer);
+}
+
+function playSound() {
+  if (!audioCtx || !audioBuffer) return;
+  const now = Date.now();
+  if (now - lastSoundTime < soundCooldown) return;
+
+  const source = audioCtx.createBufferSource();
+  source.buffer = audioBuffer;
+  source.connect(audioCtx.destination);
+  source.start(0);
+  lastSoundTime = now;
+}
+
+let latestEMGForSound = 0;
+
     window.addEventListener("DOMContentLoaded", () => {
 
-  // iOS Bluefy 補丁：首次觸控畫面時自動播放一次以解鎖權限
   document.body.addEventListener('touchstart', () => {
-    if (mp3Player && mp3Enabled) {
-      mp3Player.play().then(() => {
-        mp3Player.pause();
-        mp3Player.currentTime = 0;
-      });
-    }
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   }, { once: true });
 
+  document.getElementById("toggleMp3Btn").addEventListener("click", async () => {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (!audioBuffer) audioBuffer = await loadAudioBuffer("https://u9010269.github.io/emg-wave-app/350.mp3");
+  });
 
-let emgSimTime = 0;
-setInterval(() => {
-  emgSimTime += 100;
-  let fakeEMG = 300 + Math.floor(Math.random() * 30);
-  if (emgSimTime % 10000 === 0) fakeEMG = 400 + Math.floor(Math.random() * 50);
-  latestEMGForSound = fakeEMG;
-
-  // 顯示除錯資訊
-  const threshold = parseInt(document.getElementById("mp3Threshold").value);
-  const now = Date.now();
-  document.getElementById("debug").innerText =
-    `音效檢查：EMG=${latestEMGForSound}, 門檻=${threshold}, 開啟=${mp3Enabled}, 間隔=${now - lastSoundTime}`;
-}, 100);
-
-
-  mp3Player = document.getElementById("mp3Player");
-
-  // 音效播放獨立邏輯
   setInterval(() => {
     const threshold = parseInt(document.getElementById("mp3Threshold").value);
-    const now = Date.now();
-    if (mp3Enabled && mp3Player && latestEMGForSound > threshold) {
-      if (now - lastSoundTime > soundCooldown) {
-        mp3Player.currentTime = 0;
-        mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
-        lastSoundTime = now;
-      }
+    if (mp3Enabled && latestEMGForSound > threshold) {
+      playSound();
     }
-  }, 50);
+  }, 100);
 
       mp3Player = document.getElementById("mp3Player");
     });
@@ -255,10 +251,6 @@ setInterval(() => {
 
       if (now - lastDisplayTime >= displayInterval) {
         const avgEMG = Math.floor(bufferGroup.reduce((a, b) => a + b, 0) / bufferGroup.length);
-        latestEMGForSound = avgEMG;
-
-        
-
         emgBuffer.push(avgEMG); emgBuffer.shift();
         bufferGroup = [];
         lastDisplayTime = now;
