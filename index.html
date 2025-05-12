@@ -52,6 +52,7 @@
   <canvas id="zoomChart"></canvas>
   <p id="adjusted">校正後數值：--</p>
   <p id="mvc">即時強度：-- %</p>
+<p id="debug" style="color:gray; font-size: 0.9em;">Debug: --</p>
   <div class="btn-group">
     <label>校正數值倍率：
       <select id="amplifyRate">
@@ -86,6 +87,32 @@ const soundCooldown = 800;
     let mp3Player = null;
 
     window.addEventListener("DOMContentLoaded", () => {
+
+  // iOS Bluefy 補丁：首次觸控畫面時自動播放一次以解鎖權限
+  document.body.addEventListener('touchstart', () => {
+    if (mp3Player && mp3Enabled) {
+      mp3Player.play().then(() => {
+        mp3Player.pause();
+        mp3Player.currentTime = 0;
+      });
+    }
+  }, { once: true });
+
+
+let emgSimTime = 0;
+setInterval(() => {
+  emgSimTime += 100;
+  let fakeEMG = 300 + Math.floor(Math.random() * 30);
+  if (emgSimTime % 10000 === 0) fakeEMG = 400 + Math.floor(Math.random() * 50);
+  latestEMGForSound = fakeEMG;
+
+  // 顯示除錯資訊
+  const threshold = parseInt(document.getElementById("mp3Threshold").value);
+  const now = Date.now();
+  document.getElementById("debug").innerText =
+    `音效檢查：EMG=${latestEMGForSound}, 門檻=${threshold}, 開啟=${mp3Enabled}, 間隔=${now - lastSoundTime}`;
+}, 100);
+
 
   mp3Player = document.getElementById("mp3Player");
 
