@@ -147,7 +147,7 @@ let latestEMGForSound = 0;
           label: '原始 EMG',
           data: rawData,
           borderColor: 'blue',
-          borderWidth: 1,
+          borderWidth: 3,
           pointRadius: 0
         }]
       },
@@ -166,9 +166,9 @@ let latestEMGForSound = 0;
       data: {
         labels: Array(100).fill(''),
         datasets: [
-          { label: '模式值', data: dynamicData, borderColor: 'orange', borderWidth: 1, pointRadius: 0 },
-          { label: '校正後', data: zoomData, borderColor: 'green', borderWidth: 1, pointRadius: 0 },
-          { label: '基準線', data: baselineData, borderColor: 'red', borderWidth: 1, pointRadius: 0 }
+          { label: '模式值', data: dynamicData, borderColor: 'orange', borderWidth: 3, pointRadius: 0 },
+          { label: '校正後', data: zoomData, borderColor: 'green', borderWidth: 3, pointRadius: 0 },
+          { label: '基準線', data: baselineData, borderColor: 'red', borderWidth: 3, pointRadius: 0 }
         ]
       },
       options: {
