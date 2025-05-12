@@ -251,6 +251,7 @@ let latestEMGForSound = 0;
 
       if (now - lastDisplayTime >= displayInterval) {
         const avgEMG = Math.floor(bufferGroup.reduce((a, b) => a + b, 0) / bufferGroup.length);
+        latestEMGForSound = avgEMG;
         emgBuffer.push(avgEMG); emgBuffer.shift();
         bufferGroup = [];
         lastDisplayTime = now;
