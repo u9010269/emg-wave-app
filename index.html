@@ -76,6 +76,9 @@
     const zoomData = Array(100).fill(0);      // 綠線 (校正後)
     const dynamicData = Array(100).fill(0);   // 橘線 (根據模式)
     let smoothedValue = 0;
+let latestEMGForSound = 0;
+let lastSoundTime = 0;
+const soundCooldown = 800;
     let bufferGroup = [];
     let lastDisplayTime = Date.now();
     let mp3Enabled = false;
@@ -83,6 +86,22 @@
     let mp3Player = null;
 
     window.addEventListener("DOMContentLoaded", () => {
+
+  mp3Player = document.getElementById("mp3Player");
+
+  // 音效播放獨立邏輯
+  setInterval(() => {
+    const threshold = parseInt(document.getElementById("mp3Threshold").value);
+    const now = Date.now();
+    if (mp3Enabled && mp3Player && latestEMGForSound > threshold) {
+      if (now - lastSoundTime > soundCooldown) {
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
+        lastSoundTime = now;
+      }
+    }
+  }, 50);
+
       mp3Player = document.getElementById("mp3Player");
     });
 
@@ -209,17 +228,9 @@
 
       if (now - lastDisplayTime >= displayInterval) {
         const avgEMG = Math.floor(bufferGroup.reduce((a, b) => a + b, 0) / bufferGroup.length);
+        latestEMGForSound = avgEMG;
 
-        const threshold = parseInt(document.getElementById("mp3Threshold").value);
-        if (mp3Enabled && mp3Player) {
-          if (avgEMG > threshold && !mp3Played) {
-            mp3Player.currentTime = 0;
-            mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
-            mp3Played = true;
-          } else if (avgEMG <= threshold) {
-            mp3Played = false;
-          }
-        }
+        
 
         emgBuffer.push(avgEMG); emgBuffer.shift();
         bufferGroup = [];
