@@ -83,9 +83,11 @@
     let mp3Player = null;
 
     window.addEventListener("DOMContentLoaded", () => {
-      mp3Player = document.getElementById("mp3Player");
-      mp3Player.addEventListener("ended", () => {
-    mp3Played = false;  // MP3 播放結束後允許再次播放
+  mp3Player = document.getElementById("mp3Player");
+  mp3Player.addEventListener("ended", () => {
+    setTimeout(() => {
+      mp3Played = false;  // 播放完成後允許重新播放
+    }, 500);
   });
     });
 
@@ -258,10 +260,13 @@ emgChart.update('none');
 
         const threshold = parseInt(document.getElementById("mp3Threshold").value);
         if (mp3Enabled && mp3Player) {
-          if (emg > threshold && !mp3Played) {
-            mp3Player.currentTime = 0;
-            mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
-            mp3Played = true;
+          setTimeout(() => {
+      if (emg > threshold) {  // **確保數值穩定後才播放**
+        mp3Player.currentTime = 0;
+        mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
+        mp3Played = true;
+      }
+    }, 300); // 300ms 內仍高於門檻才播放
           } else if (emg <= threshold) {
             if (!mp3Player.paused) {  // **只有在 MP3 正在播放時才重置**
             mp3Player.pause();
