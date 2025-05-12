@@ -84,6 +84,9 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       mp3Player = document.getElementById("mp3Player");
+      mp3Player.addEventListener("ended", () => {
+    mp3Played = false;  // MP3 播放結束後允許再次播放
+  });
     });
 
     function toggleMp3() {
