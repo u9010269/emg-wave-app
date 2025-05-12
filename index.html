@@ -254,13 +254,13 @@ emgChart.update('none');
         document.getElementById('mvc').innerText = '即時強度：' + percent + ' %';
 
         const threshold = parseInt(document.getElementById("mp3Threshold").value);
-        if (mp3Enabled && mp3Player) {
-          if (emg > threshold && !mp3Played) {
-            mp3Player.currentTime = 0;
-            mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
-            mp3Played = true;
-          } else if (emg <= threshold) {
-            mp3Played = false;
+if (mp3Enabled && mp3Player) {
+  if (avgEMG > threshold && !mp3Played) {
+    mp3Player.currentTime = 0;
+    mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
+    mp3Played = true;
+  } else if (avgEMG <= threshold) {
+    mp3Played = false;
           }
         }
       }
