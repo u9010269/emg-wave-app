@@ -263,8 +263,10 @@ emgChart.update('none');
             mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
             mp3Played = true;
           } else if (emg <= threshold) {
+            if (!mp3Player.paused) {  // **只有在 MP3 正在播放時才重置**
             mp3Player.pause();
-            mp3Player.currentTime = 0;  
+            mp3Player.currentTime = 0;
+           } 
             mp3Played = false;
           }
         }
