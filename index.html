@@ -263,6 +263,8 @@ emgChart.update('none');
             mp3Player.play().catch(e => console.warn("MP3播放失敗：", e));
             mp3Played = true;
           } else if (emg <= threshold) {
+            mp3Player.pause();
+            mp3Player.currentTime = 0;  
             mp3Played = false;
           }
         }
