@@ -1,0 +1,185 @@
+
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <title>飛機 EMG 遊戲</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: sans-serif;
+      background-color: #222;
+      color: white;
+    }
+    #canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #88c0d0;
+    }
+    #startBtn {
+      position: absolute;
+      top: 40%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 16px 32px;
+      font-size: 1.2em;
+      background-color: #ffcc00;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #message {
+      position: absolute;
+      top: 20px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.2em;
+    }
+    #backLink {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background-color: #444;
+      color: white;
+      padding: 8px 12px;
+      text-decoration: none;
+      border-radius: 5px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <a id="backLink" href="emg_with_game_link.html">返回 EMG 頁面</a>
+  <div id="message">按下開始來設定動作</div>
+  <button id="startBtn">開始</button>
+  <canvas id="canvas" width="800" height="480"></canvas>
+
+  <script>
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    const ROWS = 20;
+    const rowHeight = canvas.height / ROWS;
+
+    let planeY = 10; // 初始位置第10格
+    let emg = 0;
+    let climbAvg = null, shootAvg = null;
+    let climbList = [], shootList = [];
+    let gameStarted = false;
+    let countdown = 3;
+    let message = document.getElementById("message");
+
+    document.getElementById("startBtn").onclick = async () => {
+      document.getElementById("startBtn").style.display = "none";
+      await calibrateClimb();
+    };
+
+    async function calibrateClimb() {
+      message.innerText = "請彎曲手肘 10 次...";
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        climbList.push(mockEMG("climb")); // 用模擬值
+      }
+      climbAvg = avg(climbList);
+      await calibrateShoot();
+    }
+
+    async function calibrateShoot() {
+      message.innerText = "請抓握手掌 10 次...";
+      for (let i = 0; i < 10; i++) {
+        await new Promise(r => setTimeout(r, 500));
+        shootList.push(mockEMG("shoot"));
+      }
+      shootAvg = avg(shootList);
+      startCountdown();
+    }
+
+    function startCountdown() {
+      message.innerText = "遊戲即將開始...";
+      const timer = setInterval(() => {
+        if (countdown === 0) {
+          clearInterval(timer);
+          message.innerText = "";
+          gameStarted = true;
+        } else {
+          message.innerText = countdown + "...";
+          countdown--;
+        }
+      }, 1000);
+    }
+
+    function avg(arr) {
+      return Math.floor(arr.reduce((a, b) => a + b, 0) / arr.length);
+    }
+
+    function mockEMG(type) {
+      if (type === "climb") return 350 + Math.random() * 30;
+      if (type === "shoot") return 180 + Math.random() * 30;
+      return 300;
+    }
+
+    function getClimbDelta(emg) {
+      if (!climbAvg) return 0;
+      const lower = climbAvg * 0.8;
+      const upper = climbAvg * 1.2;
+      if (emg < lower) return 0;
+      if (emg <= upper) return emg / climbAvg;
+      return 1 + ((emg - climbAvg) / climbAvg);
+    }
+
+    function shouldShoot(emg) {
+      if (!shootAvg) return false;
+      const lower = shootAvg * 0.8;
+      const upper = shootAvg * 1.2;
+      return emg >= lower && emg <= upper;
+    }
+
+    let backgroundOffset = 0;
+    const terrain = [];
+
+    for (let i = 0; i < 100; i++) {
+      terrain.push(300 + Math.sin(i * 0.2) * 40);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 背景山
+      for (let i = 0; i < canvas.width; i++) {
+        let tIndex = Math.floor((i + backgroundOffset) / 20) % terrain.length;
+        let height = terrain[tIndex];
+        ctx.fillStyle = "#654321";
+        ctx.fillRect(i, canvas.height - height, 1, height);
+        ctx.fillStyle = "#88c070";
+        ctx.fillRect(i, canvas.height - height, 1, 5);
+      }
+
+      // 飛機
+      ctx.fillStyle = "blue";
+      let planePixelY = planeY * rowHeight;
+      ctx.fillRect(80, planePixelY, 40, 20);
+
+      if (gameStarted) {
+        emg = mockEMG("play");
+        const climb = getClimbDelta(emg);
+        planeY -= climb;
+        planeY += 0.5; // 自動下墜
+        planeY = Math.max(0, Math.min(ROWS - 1, planeY));
+
+        if (shouldShoot(emg)) {
+          // 可以加入子彈邏輯
+          ctx.fillStyle = "yellow";
+          ctx.fillRect(120, planePixelY + 5, 10, 3);
+        }
+
+        backgroundOffset += 2;
+      }
+
+      requestAnimationFrame(draw);
+    }
+
+    draw();
+  </script>
+</body>
+</html>
