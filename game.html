@@ -180,7 +180,7 @@ let climbMax = 0, shootMax = 0;
     }
 
     function startGame() {
-      if (!climbAvg || !shootAvg) {
+      if (climbAvg === null || shootAvg === null) {
         message.innerText = "請先完成設置";
         return;
       }
@@ -353,7 +353,7 @@ let climbMax = 0, shootMax = 0;
     }
 
     function startGame() {
-      if (!climbAvg || !shootAvg) {
+      if (climbAvg === null || shootAvg === null) {
         message.innerText = "請先完成設置";
         return;
       }
@@ -377,6 +377,8 @@ let climbMax = 0, shootMax = 0;
             const adjustedEMG = isBaselineSet ? Math.max(0, (val - baselineEMG) * 4) : val;
             emgDisplay.innerText = "EMG：" + adjustedEMG;
             updateEMGChart(adjustedEMG);
+            emgDisplay.innerText = "EMG：" + val;
+            updateEMGChart(val);
             emgDisplay.innerText = "EMG：" + emg;
             updateEMGChart(emg);
             
