@@ -17,18 +17,19 @@
       margin: 0 auto;
       background-color: #88c0d0;
     }
-    #startBtn {
+    #startBtn, #connectBtn {
       position: absolute;
-      top: 40%;
       left: 50%;
-      transform: translate(-50%, -50%);
-      padding: 16px 32px;
-      font-size: 1.2em;
+      transform: translateX(-50%);
+      padding: 12px 24px;
+      font-size: 1em;
       background-color: #ffcc00;
       border: none;
       border-radius: 8px;
       cursor: pointer;
     }
+    #startBtn { top: 42%; }
+    #connectBtn { top: 55%; }
     #message {
       position: absolute;
       top: 20px;
@@ -51,8 +52,9 @@
 </head>
 <body>
   <a id="backLink" href="emg_with_game_link.html">返回 EMG 頁面</a>
-  <div id="message">按下開始來設定動作</div>
-  <button id="startBtn">開始</button>
+  <div id="message">請先連接藍牙裝置</div>
+  <button id="connectBtn">連接藍牙</button>
+  <button id="startBtn" style="display:none;">開始</button>
   <canvas id="canvas" width="800" height="480"></canvas>
 
   <script>
@@ -61,25 +63,56 @@
 
     const ROWS = 20;
     const rowHeight = canvas.height / ROWS;
-
-    let planeY = 10; // 初始位置第10格
+    let planeY = 10;
     let emg = 0;
     let climbAvg = null, shootAvg = null;
     let climbList = [], shootList = [];
     let gameStarted = false;
     let countdown = 3;
     let message = document.getElementById("message");
+    let bluetoothDevice = null;
+    let characteristic = null;
+
+    document.getElementById("connectBtn").onclick = async () => {
+      try {
+        bluetoothDevice = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'MLT' }],
+          optionalServices: ['ffe0']
+        });
+        const server = await bluetoothDevice.gatt.connect();
+        const service = await server.getPrimaryService('ffe0');
+        characteristic = await service.getCharacteristic('ffe1');
+        readEMGLoop();
+        message.innerText = "藍牙已連接，請開始遊戲";
+        document.getElementById("startBtn").style.display = "block";
+      } catch (e) {
+        message.innerText = "藍牙連接失敗：" + e;
+      }
+    };
 
     document.getElementById("startBtn").onclick = async () => {
       document.getElementById("startBtn").style.display = "none";
       await calibrateClimb();
     };
 
+    async function readEMGLoop() {
+      while (true) {
+        if (!characteristic) return;
+        try {
+          const value = await characteristic.readValue();
+          const text = new TextDecoder().decode(value).trim();
+          const val = parseInt(text);
+          if (!isNaN(val)) emg = val;
+        } catch {}
+        await new Promise(r => setTimeout(r, 30));
+      }
+    }
+
     async function calibrateClimb() {
       message.innerText = "請彎曲手肘 10 次...";
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 500));
-        climbList.push(mockEMG("climb")); // 用模擬值
+        climbList.push(emg);
       }
       climbAvg = avg(climbList);
       await calibrateShoot();
@@ -89,7 +122,7 @@
       message.innerText = "請抓握手掌 10 次...";
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 500));
-        shootList.push(mockEMG("shoot"));
+        shootList.push(emg);
       }
       shootAvg = avg(shootList);
       startCountdown();
@@ -113,12 +146,6 @@
       return Math.floor(arr.reduce((a, b) => a + b, 0) / arr.length);
     }
 
-    function mockEMG(type) {
-      if (type === "climb") return 350 + Math.random() * 30;
-      if (type === "shoot") return 180 + Math.random() * 30;
-      return 300;
-    }
-
     function getClimbDelta(emg) {
       if (!climbAvg) return 0;
       const lower = climbAvg * 0.8;
@@ -137,7 +164,6 @@
 
     let backgroundOffset = 0;
     const terrain = [];
-
     for (let i = 0; i < 100; i++) {
       terrain.push(300 + Math.sin(i * 0.2) * 40);
     }
@@ -161,14 +187,12 @@
       ctx.fillRect(80, planePixelY, 40, 20);
 
       if (gameStarted) {
-        emg = mockEMG("play");
         const climb = getClimbDelta(emg);
         planeY -= climb;
-        planeY += 0.5; // 自動下墜
+        planeY += 0.5;
         planeY = Math.max(0, Math.min(ROWS - 1, planeY));
 
         if (shouldShoot(emg)) {
-          // 可以加入子彈邏輯
           ctx.fillStyle = "yellow";
           ctx.fillRect(120, planePixelY + 5, 10, 3);
         }
