@@ -3,7 +3,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <title>飛機 EMG 遊戲</title>
+  <title>飛機 EMG 遊戲（重新設計）</title>
   <style>
     body {
       margin: 0;
@@ -13,23 +13,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-    #ui {
-      width: 800px;
-      padding: 10px;
-      background-color: #111;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: start;
-      gap: 10px;
-    }
-    button {
-      padding: 8px 14px;
-      font-size: 0.9em;
-      background-color: #ffcc00;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
     }
     #canvas {
       background-color: #88c0d0;
@@ -44,11 +27,48 @@
       text-decoration: none;
       border-radius: 5px;
     }
+    #infoDisplay {
+      width: 800px;
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 12px;
+      background-color: #111;
+    }
+    #controlPanel {
+      width: 800px;
+      background-color: #111;
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      justify-content: start;
+    }
+    button {
+      padding: 8px 14px;
+      font-size: 0.9em;
+      background-color: #ffcc00;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div id="ui">
+
+  <canvas id="canvas" width="800" height="480"></canvas>
+  <canvas id="emgChart" width="800" height="150"></canvas>
+
+  <div id="infoDisplay">
+    <span id="emgDisplay">EMG：--</span>
+    <span id="baselineDisplay">基準值：--</span>
+    <span id="climbAvgDisplay">彎曲平均：--</span>
+    <span id="shootAvgDisplay">抓握最大：--</span>
+    <span id="climbMaxDisplay">彎曲最大：--</span>
+    <span id="message">尚未開始</span>
+  </div>
+
+  <div id="controlPanel">
     <button onclick="connectBluetooth()">連接藍牙</button>
     <button onclick="calibrateBaseline()">📍 校正</button>
     <button onclick="startClimbSetup()">🟦 開始設置彎曲</button>
@@ -56,13 +76,8 @@
     <button onclick="startShootSetup()">🟥 開始設置抓握</button>
     <button onclick="endShootSetup()">✅ 結束抓握設置</button>
     <button onclick="startGame()">🎮 開始遊戲</button>
-    <span id="emgDisplay">EMG：--</span>
-    <span id="message">尚未開始</span>
-    <span id="baselineDisplay">基準值：--</span>
   </div>
 
-  <canvas id="canvas" width="800" height="480"></canvas>
-  <canvas id="emgChart" width="800" height="150"></canvas>
   <a id="backLink" href="index.html">返回 EMG 頁面</a>
 
   <script>
@@ -76,6 +91,7 @@
     let isBaselineSet = false;
     let climbList = [], shootList = [];
     let climbAvg = null, shootAvg = null;
+let climbMax = 0, shootMax = 0;
     let isClimbSetting = false, isShootSetting = false;
     let gameStarted = false;
     let characteristic = null;
@@ -133,7 +149,7 @@
           baselineEMG = Math.floor(sum / count);
           isBaselineSet = true;
           document.getElementById("baselineDisplay").innerText = "基準值：" + baselineEMG;
-          alert("校正完成！基準值：" + baselineEMG);
+          alert("校正完成，基準值：" + baselineEMG);
         }
       }, 30);
     }
@@ -153,20 +169,22 @@
         .catch(e => message.innerText = "藍牙連接失敗：" + e);
     }
 
-    function startClimbSetup() { climbList = []; isClimbSetting = true; message.innerText = "開始記錄彎曲..."; }
+    function startClimbSetup() { climbMax = 0; isClimbSetting = true; document.getElementById("climbMaxDisplay").innerText = "彎曲最大：--"; message.innerText = "開始記錄彎曲..."; }
     function endClimbSetup() {
       isClimbSetting = false;
-      if (climbList.length > 0) {
-        climbAvg = Math.floor(climbList.reduce((a, b) => a + b, 0) / climbList.length);
-        message.innerText = "彎曲平均：" + climbAvg;
+      if (climbMax > 0) {
+        climbAvg = climbMax;
+        document.getElementById("climbAvgDisplay").innerText = "彎曲鎖定：" + climbAvg;
+        message.innerText = "彎曲設置完成";
       }
     }
-    function startShootSetup() { shootList = []; isShootSetting = true; message.innerText = "開始記錄抓握..."; }
+    function startShootSetup() { shootMax = 0; isShootSetting = true; document.getElementById("shootAvgDisplay").innerText = "抓握最大：--"; message.innerText = "開始記錄抓握..."; }
     function endShootSetup() {
       isShootSetting = false;
-      if (shootList.length > 0) {
-        shootAvg = Math.floor(shootList.reduce((a, b) => a + b, 0) / shootList.length);
-        message.innerText = "抓握平均：" + shootAvg;
+      if (shootMax > 0) {
+        shootAvg = shootMax;
+        document.getElementById("shootAvgDisplay").innerText = "抓握鎖定：" + shootAvg;
+        message.innerText = "抓握設置完成";
       }
     }
 
@@ -192,8 +210,22 @@
             emg = isBaselineSet ? Math.max(0, (val - baselineEMG) * 4) : val;
             emgDisplay.innerText = "EMG：" + emg;
             updateEMGChart(emg);
-            if (isClimbSetting) climbList.push(emg);
-            if (isShootSetting) shootList.push(emg);
+            
+if (isClimbSetting && emg > 50) {
+  if (emg > climbMax) {
+    climbMax = emg;
+    document.getElementById("climbMaxDisplay").innerText = "彎曲最大：" + climbMax;
+  }
+}
+
+            
+if (isShootSetting && emg > 50) {
+  if (emg > shootMax) {
+    shootMax = emg;
+    document.getElementById("shootAvgDisplay").innerText = "抓握最大：" + shootMax;
+  }
+}
+
           }
         } catch {}
         await new Promise(r => setTimeout(r, 30));
@@ -223,7 +255,6 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       for (let i = 0; i < canvas.width; i++) {
         let tIndex = Math.floor((i + backgroundOffset) / 20) % terrain.length;
         let height = terrain[tIndex];
@@ -232,7 +263,6 @@
         ctx.fillStyle = "#88c070";
         ctx.fillRect(i, canvas.height - height, 1, 5);
       }
-
       let planePixelY = planeY * rowHeight;
       ctx.fillStyle = "blue";
       ctx.fillRect(80, planePixelY, 40, 20);
@@ -253,7 +283,6 @@
 
         backgroundOffset += 2;
       }
-
       requestAnimationFrame(draw);
     }
     draw();
