@@ -63,7 +63,7 @@
 
   <canvas id="canvas" width="800" height="480"></canvas>
   <canvas id="emgChart" width="800" height="150"></canvas>
-  <a id="backLink" href="emg_with_game_link.html">返回 EMG 頁面</a>
+  <a id="backLink" href="index.html">返回 EMG 頁面</a>
 
   <script>
     const canvas = document.getElementById("canvas");
@@ -189,7 +189,7 @@
           const value = await characteristic.readValue();
           const val = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(val)) {
-            emg = isBaselineSet ? Math.max(0, val - baselineEMG) : val;
+            emg = isBaselineSet ? Math.max(0, (val - baselineEMG) * 4) : val;
             emgDisplay.innerText = "EMG：" + emg;
             updateEMGChart(emg);
             if (isClimbSetting) climbList.push(emg);
