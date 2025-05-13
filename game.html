@@ -40,7 +40,7 @@
     #backLink {
       position: absolute;
       top: 10px;
-      right: 10px;
+      left: 10px;
       background-color: #444;
       color: white;
       padding: 8px 12px;
@@ -72,6 +72,8 @@
     let message = document.getElementById("message");
     let bluetoothDevice = null;
     let characteristic = null;
+    let lastShootTime = 0;
+    const shootCooldown = 400;
 
     document.getElementById("connectBtn").onclick = async () => {
       try {
@@ -110,6 +112,7 @@
 
     async function calibrateClimb() {
       message.innerText = "請彎曲手肘 10 次...";
+      climbList = [];
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 500));
         climbList.push(emg);
@@ -120,6 +123,7 @@
 
     async function calibrateShoot() {
       message.innerText = "請抓握手掌 10 次...";
+      shootList = [];
       for (let i = 0; i < 10; i++) {
         await new Promise(r => setTimeout(r, 500));
         shootList.push(emg);
@@ -151,15 +155,20 @@
       const lower = climbAvg * 0.8;
       const upper = climbAvg * 1.2;
       if (emg < lower) return 0;
-      if (emg <= upper) return emg / climbAvg;
+      if (emg <= upper) return (emg / climbAvg);
       return 1 + ((emg - climbAvg) / climbAvg);
     }
 
     function shouldShoot(emg) {
       if (!shootAvg) return false;
+      const now = Date.now();
       const lower = shootAvg * 0.8;
       const upper = shootAvg * 1.2;
-      return emg >= lower && emg <= upper;
+      if (emg >= lower && emg <= upper && (now - lastShootTime > shootCooldown)) {
+        lastShootTime = now;
+        return true;
+      }
+      return false;
     }
 
     let backgroundOffset = 0;
@@ -187,11 +196,13 @@
       ctx.fillRect(80, planePixelY, 40, 20);
 
       if (gameStarted) {
+        // 飛機控制
         const climb = getClimbDelta(emg);
-        planeY -= climb;
-        planeY += 0.5;
+        planeY -= climb * 0.3;   // 放慢爬升速度
+        planeY += 0.2;           // 重力下墜
         planeY = Math.max(0, Math.min(ROWS - 1, planeY));
 
+        // 射擊
         if (shouldShoot(emg)) {
           ctx.fillStyle = "yellow";
           ctx.fillRect(120, planePixelY + 5, 10, 3);
