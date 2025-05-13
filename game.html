@@ -10,18 +10,19 @@
       font-family: sans-serif;
       background-color: #222;
       color: white;
-    }
-    #canvas {
-      display: block;
-      background-color: #88c0d0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
     #ui {
+      width: 800px;
       padding: 10px;
       background-color: #111;
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
+      justify-content: start;
       gap: 10px;
+      z-index: 10;
     }
     button {
       padding: 8px 14px;
@@ -33,7 +34,7 @@
     }
     #message {
       font-size: 1em;
-      margin-left: 20px;
+      margin-left: auto;
     }
     #emgDisplay {
       font-size: 1em;
@@ -41,34 +42,37 @@
       background-color: #333;
       border-radius: 6px;
     }
+    #canvas {
+      background-color: #88c0d0;
+      display: block;
+    }
     #backLink {
-      position: absolute;
-      top: 10px;
-      left: 10px;
+      display: inline-block;
+      margin: 10px;
       background-color: #444;
       color: white;
       padding: 8px 12px;
       text-decoration: none;
       border-radius: 5px;
-      z-index: 10;
     }
   </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <a id="backLink" href="emg_with_game_link.html">返回 EMG 頁面</a>
   <div id="ui">
-    <button onclick="connectBluetooth()">連接藍牙</button>
-    <button onclick="startClimbSetup()">🟦 開始設置彎曲</button>
-    <button onclick="endClimbSetup()">✅ 結束彎曲設置</button>
-    <button onclick="startShootSetup()">🟥 開始設置抓握</button>
-    <button onclick="endShootSetup()">✅ 結束抓握設置</button>
-    <button onclick="startGame()">🎮 開始遊戲</button>
+    <button id="btnConnect">連接藍牙</button>
+    <button id="btnStartClimb">🟦 開始設置彎曲</button>
+    <button id="btnEndClimb">✅ 結束彎曲設置</button>
+    <button id="btnStartShoot">🟥 開始設置抓握</button>
+    <button id="btnEndShoot">✅ 結束抓握設置</button>
+    <button id="btnStartGame">🎮 開始遊戲</button>
     <span id="emgDisplay">EMG：--</span>
     <span id="message">尚未開始</span>
   </div>
+
   <canvas id="canvas" width="800" height="480"></canvas>
   <canvas id="emgChart" width="800" height="150"></canvas>
+  <a id="backLink" href="emg_with_game_link.html">返回 EMG 頁面</a>
 
   <script>
     const canvas = document.getElementById("canvas");
@@ -77,21 +81,19 @@
     const rowHeight = canvas.height / ROWS;
     let planeY = 10;
     let emg = 0;
-    let emgDisplay = document.getElementById("emgDisplay");
-    let message = document.getElementById("message");
     let climbList = [], shootList = [];
     let climbAvg = null, shootAvg = null;
-    let climbSetting = false, shootSetting = false;
+    let isClimbSetting = false, isShootSetting = false;
     let gameStarted = false;
     let characteristic = null;
     let bullets = [];
     let backgroundOffset = 0;
     let lastShootTime = 0;
     const shootCooldown = 400;
-
     const terrain = Array.from({length: 100}, (_, i) => 300 + Math.sin(i * 0.2) * 40);
+    const emgDisplay = document.getElementById("emgDisplay");
+    const message = document.getElementById("message");
 
-    // EMG 波形圖初始化
     const chartData = {
       labels: Array(100).fill(''),
       datasets: [{
@@ -103,68 +105,66 @@
         fill: false,
       }]
     };
-    const chartConfig = {
+    const emgChart = new Chart(document.getElementById("emgChart"), {
       type: 'line',
       data: chartData,
       options: {
         responsive: false,
         animation: false,
-        scales: {
-          y: { min: 0, max: 1023 }
-        }
+        scales: { y: { min: 0, max: 1023 } }
       }
-    };
-    const emgChart = new Chart(document.getElementById("emgChart"), chartConfig);
-
+    });
     function updateEMGChart(val) {
       chartData.datasets[0].data.push(val);
       chartData.datasets[0].data.shift();
       emgChart.update('none');
     }
 
-    function connectBluetooth() {
-      navigator.bluetooth.requestDevice({
-        filters: [{ namePrefix: 'MLT' }],
-        optionalServices: ['ffe0']
-      }).then(device => device.gatt.connect())
-        .then(server => server.getPrimaryService('ffe0'))
-        .then(service => service.getCharacteristic('ffe1'))
-        .then(c => {
-          characteristic = c;
-          readEMGLoop();
-          message.innerText = "藍牙已連接";
-        })
-        .catch(e => message.innerText = "藍牙連接失敗：" + e);
-    }
+    document.getElementById("btnConnect").onclick = async () => {
+      try {
+        const device = await navigator.bluetooth.requestDevice({
+          filters: [{ namePrefix: 'MLT' }],
+          optionalServices: ['ffe0']
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService('ffe0');
+        characteristic = await service.getCharacteristic('ffe1');
+        readEMGLoop();
+        message.innerText = "藍牙已連接";
+      } catch (e) {
+        message.innerText = "藍牙連接失敗：" + e;
+      }
+    };
 
-    function startClimbSetup() {
+    document.getElementById("btnStartClimb").onclick = () => {
       climbList = [];
-      climbSetting = true;
+      isClimbSetting = true;
       message.innerText = "開始記錄彎曲數據...";
-    }
-    function endClimbSetup() {
-      climbSetting = false;
+    };
+    document.getElementById("btnEndClimb").onclick = () => {
+      isClimbSetting = false;
       if (climbList.length > 0) {
         climbAvg = Math.floor(climbList.reduce((a, b) => a + b, 0) / climbList.length);
         message.innerText = "彎曲平均值設為 " + climbAvg;
       }
-    }
-    function startShootSetup() {
+    };
+
+    document.getElementById("btnStartShoot").onclick = () => {
       shootList = [];
-      shootSetting = true;
+      isShootSetting = true;
       message.innerText = "開始記錄抓握數據...";
-    }
-    function endShootSetup() {
-      shootSetting = false;
+    };
+    document.getElementById("btnEndShoot").onclick = () => {
+      isShootSetting = false;
       if (shootList.length > 0) {
         shootAvg = Math.floor(shootList.reduce((a, b) => a + b, 0) / shootList.length);
         message.innerText = "抓握平均值設為 " + shootAvg;
       }
-    }
+    };
 
-    function startGame() {
+    document.getElementById("btnStartGame").onclick = () => {
       if (!climbAvg || !shootAvg) {
-        message.innerText = "請先設定彎曲與抓握值！";
+        message.innerText = "請先設定彎曲與抓握值";
         return;
       }
       message.innerText = "遊戲倒數 3 秒...";
@@ -172,7 +172,7 @@
         message.innerText = "";
         gameStarted = true;
       }, 3000);
-    }
+    };
 
     async function readEMGLoop() {
       while (true) {
@@ -185,8 +185,8 @@
             emg = val;
             emgDisplay.innerText = "EMG：" + val;
             updateEMGChart(val);
-            if (climbSetting) climbList.push(val);
-            if (shootSetting) shootList.push(val);
+            if (isClimbSetting) climbList.push(val);
+            if (isShootSetting) shootList.push(val);
           }
         } catch {}
         await new Promise(r => setTimeout(r, 30));
@@ -216,7 +216,6 @@
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       for (let i = 0; i < canvas.width; i++) {
         let tIndex = Math.floor((i + backgroundOffset) / 20) % terrain.length;
         let height = terrain[tIndex];
