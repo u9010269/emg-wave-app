@@ -22,7 +22,6 @@
       flex-wrap: wrap;
       justify-content: start;
       gap: 10px;
-      z-index: 10;
     }
     button {
       padding: 8px 14px;
@@ -31,16 +30,6 @@
       border: none;
       border-radius: 6px;
       cursor: pointer;
-    }
-    #message {
-      font-size: 1em;
-      margin-left: auto;
-    }
-    #emgDisplay {
-      font-size: 1em;
-      padding: 6px 12px;
-      background-color: #333;
-      border-radius: 6px;
     }
     #canvas {
       background-color: #88c0d0;
@@ -60,14 +49,16 @@
 </head>
 <body>
   <div id="ui">
-    <button id="btnConnect">連接藍牙</button>
-    <button id="btnStartClimb">🟦 開始設置彎曲</button>
-    <button id="btnEndClimb">✅ 結束彎曲設置</button>
-    <button id="btnStartShoot">🟥 開始設置抓握</button>
-    <button id="btnEndShoot">✅ 結束抓握設置</button>
-    <button id="btnStartGame">🎮 開始遊戲</button>
+    <button onclick="connectBluetooth()">連接藍牙</button>
+    <button onclick="calibrateBaseline()">📍 校正</button>
+    <button onclick="startClimbSetup()">🟦 開始設置彎曲</button>
+    <button onclick="endClimbSetup()">✅ 結束彎曲設置</button>
+    <button onclick="startShootSetup()">🟥 開始設置抓握</button>
+    <button onclick="endShootSetup()">✅ 結束抓握設置</button>
+    <button onclick="startGame()">🎮 開始遊戲</button>
     <span id="emgDisplay">EMG：--</span>
     <span id="message">尚未開始</span>
+    <span id="baselineDisplay">基準值：--</span>
   </div>
 
   <canvas id="canvas" width="800" height="480"></canvas>
@@ -81,6 +72,8 @@
     const rowHeight = canvas.height / ROWS;
     let planeY = 10;
     let emg = 0;
+    let baselineEMG = 0;
+    let isBaselineSet = false;
     let climbList = [], shootList = [];
     let climbAvg = null, shootAvg = null;
     let isClimbSetting = false, isShootSetting = false;
@@ -90,6 +83,7 @@
     let backgroundOffset = 0;
     let lastShootTime = 0;
     const shootCooldown = 400;
+
     const terrain = Array.from({length: 100}, (_, i) => 300 + Math.sin(i * 0.2) * 40);
     const emgDisplay = document.getElementById("emgDisplay");
     const message = document.getElementById("message");
@@ -120,88 +114,100 @@
       emgChart.update('none');
     }
 
-    document.getElementById("btnConnect").onclick = async () => {
-      try {
-        const device = await navigator.bluetooth.requestDevice({
-          filters: [{ namePrefix: 'MLT' }],
-          optionalServices: ['ffe0']
-        });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService('ffe0');
-        characteristic = await service.getCharacteristic('ffe1');
-        readEMGLoop();
-        message.innerText = "藍牙已連接";
-      } catch (e) {
-        message.innerText = "藍牙連接失敗：" + e;
+    function calibrateBaseline() {
+      if (!characteristic) {
+        alert("請先連接藍牙");
+        return;
       }
-    };
+      alert("請放鬆手部，開始校正...");
+      let sum = 0, count = 0;
+      const interval = setInterval(async () => {
+        const value = await characteristic.readValue();
+        const val = parseInt(new TextDecoder().decode(value).trim());
+        if (!isNaN(val)) {
+          sum += val;
+          count++;
+        }
+        if (count >= 100) {
+          clearInterval(interval);
+          baselineEMG = Math.floor(sum / count);
+          isBaselineSet = true;
+          document.getElementById("baselineDisplay").innerText = "基準值：" + baselineEMG;
+          alert("校正完成！基準值：" + baselineEMG);
+        }
+      }, 30);
+    }
 
-    document.getElementById("btnStartClimb").onclick = () => {
-      climbList = [];
-      isClimbSetting = true;
-      message.innerText = "開始記錄彎曲數據...";
-    };
-    document.getElementById("btnEndClimb").onclick = () => {
+    function connectBluetooth() {
+      navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'MLT' }],
+        optionalServices: ['ffe0']
+      }).then(device => device.gatt.connect())
+        .then(server => server.getPrimaryService('ffe0'))
+        .then(service => service.getCharacteristic('ffe1'))
+        .then(c => {
+          characteristic = c;
+          readEMGLoop();
+          message.innerText = "藍牙已連接";
+        })
+        .catch(e => message.innerText = "藍牙連接失敗：" + e);
+    }
+
+    function startClimbSetup() { climbList = []; isClimbSetting = true; message.innerText = "開始記錄彎曲..."; }
+    function endClimbSetup() {
       isClimbSetting = false;
       if (climbList.length > 0) {
         climbAvg = Math.floor(climbList.reduce((a, b) => a + b, 0) / climbList.length);
-        message.innerText = "彎曲平均值設為 " + climbAvg;
+        message.innerText = "彎曲平均：" + climbAvg;
       }
-    };
-
-    document.getElementById("btnStartShoot").onclick = () => {
-      shootList = [];
-      isShootSetting = true;
-      message.innerText = "開始記錄抓握數據...";
-    };
-    document.getElementById("btnEndShoot").onclick = () => {
+    }
+    function startShootSetup() { shootList = []; isShootSetting = true; message.innerText = "開始記錄抓握..."; }
+    function endShootSetup() {
       isShootSetting = false;
       if (shootList.length > 0) {
         shootAvg = Math.floor(shootList.reduce((a, b) => a + b, 0) / shootList.length);
-        message.innerText = "抓握平均值設為 " + shootAvg;
+        message.innerText = "抓握平均：" + shootAvg;
       }
-    };
+    }
 
-    document.getElementById("btnStartGame").onclick = () => {
+    function startGame() {
       if (!climbAvg || !shootAvg) {
-        message.innerText = "請先設定彎曲與抓握值";
+        message.innerText = "請先完成設置";
         return;
       }
-      message.innerText = "遊戲倒數 3 秒...";
+      message.innerText = "遊戲即將開始...";
       setTimeout(() => {
-        message.innerText = "";
         gameStarted = true;
+        message.innerText = "";
       }, 3000);
-    };
+    }
 
     async function readEMGLoop() {
       while (true) {
         if (!characteristic) return;
         try {
           const value = await characteristic.readValue();
-          const text = new TextDecoder().decode(value).trim();
-          const val = parseInt(text);
+          const val = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(val)) {
-            emg = val;
-            emgDisplay.innerText = "EMG：" + val;
-            updateEMGChart(val);
-            if (isClimbSetting) climbList.push(val);
-            if (isShootSetting) shootList.push(val);
+            emg = isBaselineSet ? Math.max(0, val - baselineEMG) : val;
+            emgDisplay.innerText = "EMG：" + emg;
+            updateEMGChart(emg);
+            if (isClimbSetting) climbList.push(emg);
+            if (isShootSetting) shootList.push(emg);
           }
         } catch {}
         await new Promise(r => setTimeout(r, 30));
       }
     }
 
-    
-function getClimbDelta() {
-  if (!climbAvg) return 0;
-  const lower = climbAvg * 0.8;
-  const upper = climbAvg * 1.2;
-  if (emg < lower) return 0;
-  if (emg <= upper) return 1.2; // 在區間內直接給 1.2 值補推力
-  return 1 + ((emg - climbAvg) / climbAvg);
-}
+    function getClimbDelta() {
+      if (!climbAvg) return 0;
+      const lower = climbAvg * 0.9;
+      const upper = climbAvg * 1.1;
+      if (emg < lower) return 0;
+      if (emg <= upper) return 0.2;
+      return 0.2 + ((emg - upper) / climbAvg);
+    }
 
     function shouldShoot() {
       if (!shootAvg) return false;
@@ -217,6 +223,7 @@ function getClimbDelta() {
 
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+
       for (let i = 0; i < canvas.width; i++) {
         let tIndex = Math.floor((i + backgroundOffset) / 20) % terrain.length;
         let height = terrain[tIndex];
@@ -232,12 +239,10 @@ function getClimbDelta() {
 
       if (gameStarted) {
         planeY += 0.1;
-        planeY -= getClimbDelta() * 0.2;
+        planeY -= getClimbDelta();
         planeY = Math.max(0, Math.min(ROWS - 1, planeY));
 
-        if (shouldShoot()) {
-          bullets.push({ x: 120, y: planePixelY + 8 });
-        }
+        if (shouldShoot()) bullets.push({ x: 120, y: planePixelY + 8 });
 
         ctx.fillStyle = "yellow";
         bullets.forEach(b => {
@@ -251,7 +256,6 @@ function getClimbDelta() {
 
       requestAnimationFrame(draw);
     }
-
     draw();
   </script>
 </body>
