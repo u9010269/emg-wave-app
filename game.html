@@ -193,14 +193,15 @@
       }
     }
 
-    function getClimbDelta() {
-      if (!climbAvg) return 0;
-      const lower = climbAvg * 0.8;
-      const upper = climbAvg * 1.2;
-      if (emg < lower) return 0;
-      if (emg <= upper) return emg / climbAvg;
-      return 1 + ((emg - climbAvg) / climbAvg);
-    }
+    
+function getClimbDelta() {
+  if (!climbAvg) return 0;
+  const lower = climbAvg * 0.8;
+  const upper = climbAvg * 1.2;
+  if (emg < lower) return 0;
+  if (emg <= upper) return 1.2; // 在區間內直接給 1.2 值補推力
+  return 1 + ((emg - climbAvg) / climbAvg);
+}
 
     function shouldShoot() {
       if (!shootAvg) return false;
@@ -230,8 +231,8 @@
       ctx.fillRect(80, planePixelY, 40, 20);
 
       if (gameStarted) {
-        planeY -= getClimbDelta() * 0.15;
-        planeY += 0.15;
+        planeY += 0.1;
+        planeY -= getClimbDelta() * 0.2;
         planeY = Math.max(0, Math.min(ROWS - 1, planeY));
 
         if (shouldShoot()) {
