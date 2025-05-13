@@ -375,8 +375,8 @@ let climbMax = 0, shootMax = 0;
           const val = parseInt(new TextDecoder().decode(value).trim());
           if (!isNaN(val)) {
             const adjustedEMG = isBaselineSet ? Math.max(0, (val - baselineEMG) * 4) : val;
-            emgDisplay.innerText = "EMG：" + val;
-            updateEMGChart(val);
+            emgDisplay.innerText = "EMG：" + adjustedEMG;
+            updateEMGChart(adjustedEMG);
             emgDisplay.innerText = "EMG：" + emg;
             updateEMGChart(emg);
             
